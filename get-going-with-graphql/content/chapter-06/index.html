@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US" xml:lang="en-US">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="../../images/favicon.ico" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Mandi Wise" />
+  <title>Get Going with GraphQL</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <link rel="stylesheet" href="../../css/web.min.css" />
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<div id="masthead">
+<div class="close-button-wrapper">
+<button id="masthead-close" type="button"><span>Close</span></button>
+</div>
+<header id="title-block-header">
+<h1 class="title">Get Going with GraphQL</h1>
+<p class="subtitle">Learn How to Build JavaScript Applications with Apollo Server and Apollo Client</p>
+<p class="author">Mandi Wise</p>
+</header>
+<nav class="book-nav">
+<ol class="front-matter-content">
+<li><a href="../preface/index.html">Preface</a></li>
+</ol>
+<ol class="main-matter-content">
+<li><a href="../chapter-01/index.html">Up and Running with GraphQL and Apollo Server</a></li>
+<li><a href="../chapter-02/index.html">More on Queries</a></li>
+<li><a href="../chapter-03/index.html">Mutating Data</a></li>
+<li><a href="../chapter-04/index.html">Pagination and Search Queries</a></li>
+<li><a href="../chapter-05/index.html">Documentation, Custom Scalars, and Custom Directives</a></li>
+<li><a href="../chapter-06/index.html">Authentication and Authorization</a></li>
+<li><a href="../chapter-07/index.html">React App Set-up</a></li>
+<li><a href="../chapter-08/index.html">Apollo Client with User Authentication</a></li>
+<li><a href="../chapter-09/index.html">Pagination, Mutations, and the Apollo Client Cache</a></li>
+<li><a href="../chapter-10/index.html">Real-time Updates with Subscriptions</a></li>
+</ol>
+<ol class="back-matter-content">
+<li><a href="../appendix-a/index.html">Appendix A</a></li>
+<li><a href="../about-the-author/index.html">About the Author</a></li>
+<li><a href="../changelog/index.html">Changelog</a></li>
+</ol>
+<img src="../../images/8bp-logo-white.svg" class="logo" alt="8-Bit Press Inc. logo" />
+</nav>
+</div>
+<div id="chapter">
+<div class="chapter-nav">
+<nav id="TOC" role="doc-toc">
+<button id="masthead-open" type="button"><span>Book Navigation</span></button>
+<h2 id="toc-title">Contents</h2>
+<ul>
+<li><a href="#authentication-and-authorization">Chapter 6: Authentication and Authorization</a>
+<ul>
+<li><a href="#locking-down-a-graphql-api">Locking Down a GraphQL API</a></li>
+<li><a href="#whats-a-json-web-token">What’s a JSON Web Token?</a></li>
+<li><a href="#save-a-hashed-password-on-user-sign-up">Save a Hashed Password on User Sign-up</a></li>
+<li><a href="#add-a-login-mutation">Add a <code>login</code> Mutation</a></li>
+<li><a href="#migrate-to-apollo-server-express">Migrate to Apollo Server Express</a></li>
+<li><a href="#set-valid-decoded-jwts-on-apollo-servers-context">Set Valid, Decoded JWTs on Apollo Server’s Context</a></li>
+<li><a href="#add-a-viewer-query">Add a <code>viewer</code> Query</a></li>
+<li><a href="#add-graphql-shield-for-authorization">Add GraphQL Shield for Authorization</a></li>
+<li><a href="#summary">Summary</a></li>
+</ul></li>
+</ul>
+</nav>
+</div>
+<div class="content">
+<h1 id="authentication-and-authorization">Chapter 6: Authentication and Authorization</h1>
+<div class="boxout">
+<p>In this chapter, we will:</p>
+<ul>
+<li>Save passwords and sign a JSON Web Token for users when they sign up</li>
+<li>Add a <code>login</code> mutation that sends a token to a user</li>
+<li>Add middleware to Express to verify tokens sent with incoming requests</li>
+<li>Add a <code>viewer</code> query to obtain information about the currently authenticated user</li>
+<li>Add field-level authorization to a GraphQL API</li>
+</ul>
+</div>
+<h2 id="locking-down-a-graphql-api">Locking Down a GraphQL API</h2>
+<p>After some hard work over the last five chapters, we now have a robust GraphQL API up and running for Bibliotech. That said, there are two important features still missing. First, while we have a basic <code>signUp</code> mutation, we don’t have any way to log existing users into the application. The second missing feature is that a logged-in state for a user wouldn’t mean anything in relation to how the API currently functions. Put differently, there’s no way to limit a user’s actions (such as updating their library) based on who the user is.</p>
+<p>To support these features, we need to add <em>authentication</em> (a way to identify that a user is who they say they are) and <em>authorization</em> (a way to ensure users can only do the things that they’re allowed to do) to the API. A good place to start when deciding to manage these concerns for the API would be the GraphQL specification itself to see what it has to say about how we should handle them. So on the topics of authentication and authorization, the GraphQL specification has this to say:</p>
+<p><em>Cue the sound of crickets chirping…</em></p>
+<p>That’s right—the specification doesn’t outline any particular requirements about how authentication and authorization are applied to a GraphQL API. So does that mean the world is our auth oyster? Technically it does, but in the years since GraphQL’s public release numerous patterns and best practices have emerged that can inform our approach.</p>
+<p>If you’ve added authentication to another application before, you may have used a session cookie or a JSON Web Token (JWT) to identify authenticated users. Both of these approaches can be used with GraphQL. GraphQL APIs also integrate well with authentication services such as <a href="https://auth0.com/">Auth0</a> or <a href="https://magic.link/">Magic</a> in most cases. To secure Bibliotech, we’ll implement token-based authentication with JWTs from scratch throughout this chapter.</p>
+<div class="boxout">
+<p><strong>A Quick Note on Using Third-Party Authentication Services</strong></p>
+<p>Authentication is a hard problem to solve properly and securely, which is why third-party services exist solely to handle this concern for an application. These services often also provide support for advanced features that you usually wouldn’t want to attempt to build on your own such as single sign-on (SSO) and multi-factor authentication.</p>
+<p>While we’re going to roll our own basic authentication solution in this chapter for educational purposes, for real-world applications you will likely want to investigate whether a third-party service would better suit your needs.</p>
+<p>If you’d like to learn more about integrating Auth0 as an authentication solution for a GraphQL API, then check out <a href="https://8bit.press/advanced-graphql">Advanced GraphQL with Apollo &amp; React</a>.</p>
+</div>
+<h2 id="whats-a-json-web-token">What’s a JSON Web Token?</h2>
+<p>Before we can set up token-based authentication with JWTs, we should learn a bit more about what they are and how they work. If you’re already familiar with JWTs, then feel free to jump ahead to the next section.</p>
+<p>JWTs may seem fancy at first glance, but they’re merely a specific kind of token that conforms to an open standard that describes how information may be transmitted as a compact JSON object. To verify a user’s identity when they make requests to our GraphQL server for protected data, the user’s browser will need to send a valid JWT with every request (often in an <code>Authorization</code> header), otherwise, the user will need to re-authenticate.</p>
+<p>JWTs consist of three distinct parts:</p>
+<ol type="1">
+<li><strong>Header:</strong> Contains information about the token type and the algorithm used to sign the token (for example, HS256).</li>
+<li><strong>Payload:</strong> Contains claims about a particular entity, and these statements may have predefined meanings in the JWT specification (known as <em>registered</em> claims) or they can be defined by the JWT user (known as <em>public</em> and <em>private</em> claims).</li>
+<li><strong>Signature:</strong> Helps to verify that no information was changed during the token’s transmission by hashing together the token header and its payload, along with a secret.</li>
+</ol>
+<p>To create the token, each of these parts are base64url-encoded (for compactness) and then concatenated together with a period. A typical JWT may look like this:</p>
+<div class="break-line-anywhere">
+<div class="highlight"><pre><span></span>eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9.eyJzdWIiOiIxMjM0NTY3ODkwIiwiaWF0IjoxNTE2MjM5MDIyLCJuYW1lIjoiQm9iIFJvc3MiLCJwYWludGVyIjp0cnVlfQ.IAHZ341NCj8ggBRNirYcLcV1nQUAaQt_P-FWJI-utW5nYhRj0EzFp_pyhz5JlyGMKveTJYxYF2_YuM7mSHBdbcUpoU-Z8JdqdoCifuddIcOL3ZaLCQhkgl84gf_T_u77a9PLjuRhExkYFjd73CTsXQUJgjn8YnKC8263VsYktN6N7iFcv0gWyRwdX4xWmyiES3LJWjwPW8cWInJIcc6m3z488UURHlvhlDshlOTJCWT0hrVaGOyFhSzqtDl8dU5_E6InMd3qyuQNus5TBiMacLcuLcP8GzpEnp3yCeRUcuhpw8ltDK0GVsMMVNBOfWVEps5iDAG7zdY18GiJ5zvnLg
+</pre></div>
+
+</div>
+<p>It’s important to note that even though the JWT above may look encrypted it’s just base64url-encoded, so all of the information inside can just as easily be decoded again. Similarly, the signature portion of the JWT only helps us ensure that its data hasn’t been changed while in transmission between the sender and receiver. The signature plays no role in encrypting the information contained within. For these reasons, it’s important to never put any secret information inside of a JWT header or payload in clear text.</p>
+<p>The header and payload sections of the above token would respectively decode to:</p>
+<p></p>
+<div class="code-context">
+<p>JWT Header</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;alg&quot;</span><span class="p">:</span> <span class="s2">&quot;HS256&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;typ&quot;</span><span class="p">:</span> <span class="s2">&quot;JWT&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>JWT Payload</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;sub&quot;</span><span class="p">:</span> <span class="s2">&quot;1234567890&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;iat&quot;</span><span class="p">:</span> <span class="mi">1615147456</span><span class="p">,</span>
+  <span class="nt">&quot;artist&quot;</span><span class="p">:</span> <span class="s2">&quot;Bob Ross&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;medium&quot;</span><span class="p">:</span> <span class="s2">&quot;oil paint&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>In the token’s payload, the <code>sub</code> and <code>iat</code> claims represent <em>registered</em> claims, where <code>sub</code> (short for “subject”) is a unique identifier for the object described by the token. The <code>iat</code> claim is the time at which the token was issued. These claims are a part of the JWT specification. However, <code>artist</code> and <code>medium</code> are <em>custom</em> claims added to token, and specifically, they would be considered <code>private</code> claims and meant for use in a closed network only. By contrast, a public claim is also user-defined but would be registered with the IANA JSON Web Token Claims registry or have a specially formatted name (such as a URI) to avoid naming collisions. There are no public claims in the token above.</p>
+<div class="boxout">
+<p>You can experiment with encoding and decoding JWTs at <a href="https://jwt.io">https://jwt.io</a>.</p>
+</div>
+<p>Using a JWT like the one above, a typical user authentication flow would follow these steps:</p>
+<ol type="1">
+<li>A user would submit their username and password in a request from a client</li>
+<li>The server would verify the submitted username and password against data saved in a database and then send a JWT back to the client to be used as an access token (until the token expires)</li>
+<li>The client will send that token back in an <code>Authorization</code> header or a cookie with subsequent requests to the server</li>
+<li>The server will verify the JWT and then send back the protected data to the user in its response if the JWT is valid</li>
+</ol>
+<p>This process can be illustrated as follows:</p>
+<p><img src="../../images/diagrams/client-server-jwts.png" alt="JWT flow between a server and client" /><br />
+</p>
+<p>After authenticating, the JWT has to be sent back with every request because HTTP is a stateless protocol, meaning that there’s no built-in way for the response of one HTTP request to be altered based on the outcome of a previous request. In other words, if a user logs in and then navigates to another page or requests more data, they must send their provided JWT along with the second request because the server will have no memory of them making the first request to authenticate.</p>
+<p>With this knowledge in hand, we’re ready to do some light refactoring so we’ll be ready to begin providing JWTs to authenticated Bibliotech users.</p>
+<h2 id="save-a-hashed-password-on-user-sign-up">Save a Hashed Password on User Sign-up</h2>
+<p>We’re going to set up password-based authentication for users, so when they sign up we’ll need to collect a password from them. Our first step will be to update the <code>SignUpInput</code> with a field for the password string:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="sb">  &quot;&quot;&quot;</span>
+<span class="sb">  Provides data to create a user.</span>
+<span class="sb">  &quot;&quot;&quot;</span>
+<span class="sb">  input SignUpInput {</span>
+<span class="sb">    # ...</span>
+<span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">    The user&#39;s chosen password.</span>
+</span><span class="hll">
+</span><span class="hll"><span class="sb">    It must be a minimum of 8 characters in length and contain 1 lowercase</span>
+</span><span class="hll"><span class="sb">    letter, 1 uppercase letter, 1 number, and 1 special character.</span>
+</span><span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">    password: String!</span>
+</span><span class="sb">    &quot;The user&#39;s chosen username (must be unique).&quot;</span>
+<span class="sb">    username: String! @unique(path: &quot;users&quot;)</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>When a user signs up, it would be a good idea to return their token to them so they can subsequently send authenticated requests. At the moment, the <code>signUp</code> mutation only outputs a <code>User</code>, so let’s wrap the <code>User</code> in an <code>AuthPayload</code> type and add <code>token</code> field to it, and then update the output type for the mutation:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  A currently authenticated user and their valid JWT.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  type AuthPayload {</span>
+</span><span class="hll"><span class="sb">    &quot;The logged-in user.&quot;</span>
+</span><span class="hll"><span class="sb">    viewer: User</span>
+</span><span class="hll"><span class="sb">    &quot;A JWT issued at the time of the user&#39;s most recent authentication.&quot;</span>
+</span><span class="hll"><span class="sb">    token: String</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll">
+</span><span class="sb">  # ...</span>
+
+<span class="sb">  type Mutation {</span>
+<span class="sb">    # ...</span>
+<span class="sb">    &quot;Creates a new user.&quot;</span>
+<span class="hll"><span class="sb">    signUp(input: SignUpInput!): AuthPayload!</span>
+</span><span class="sb">    # ...</span>
+<span class="sb">  }</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>Next, we’ll need to update the <code>signUp</code> method in the <code>JsonServerApi</code> data source to encrypt and store the user password (because we never want to store user passwords in clear text!). To do that, we can use the <code>crypto</code> module built into Node.js and we’ll create some helper functions for hashing and verifying passwords in a <code>passwords.js</code> file in a new <code>utils</code> directory in <code>server/src</code>:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/utils/passwords.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">promisify</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;util&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">randomBytes</span><span class="p">,</span> <span class="nx">scrypt</span><span class="p">,</span> <span class="nx">timingSafeEqual</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;crypto&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">scryptAsync</span> <span class="o">=</span> <span class="nx">promisify</span><span class="p">(</span><span class="nx">scrypt</span><span class="p">);</span>
+
+<span class="kr">export</span> <span class="nx">async</span> <span class="kd">function</span> <span class="nx">hashPassword</span><span class="p">(</span><span class="nx">password</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kr">const</span> <span class="nx">salt</span> <span class="o">=</span> <span class="nx">randomBytes</span><span class="p">(</span><span class="mi">16</span><span class="p">).</span><span class="nx">toString</span><span class="p">(</span><span class="s2">&quot;hex&quot;</span><span class="p">);</span>
+  <span class="kr">const</span> <span class="nx">derivedKey</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">scryptAsync</span><span class="p">(</span><span class="nx">password</span><span class="p">,</span> <span class="nx">salt</span><span class="p">,</span> <span class="mi">64</span><span class="p">);</span>
+  <span class="k">return</span> <span class="nx">salt</span> <span class="o">+</span> <span class="s2">&quot;:&quot;</span> <span class="o">+</span> <span class="nx">derivedKey</span><span class="p">.</span><span class="nx">toString</span><span class="p">(</span><span class="s2">&quot;hex&quot;</span><span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="nx">async</span> <span class="kd">function</span> <span class="nx">verifyPassword</span><span class="p">(</span><span class="nx">password</span><span class="p">,</span> <span class="nx">hash</span><span class="p">)</span> <span class="p">{</span>
+  <span class="kr">const</span> <span class="p">[</span><span class="nx">salt</span><span class="p">,</span> <span class="nx">key</span><span class="p">]</span> <span class="o">=</span> <span class="nx">hash</span><span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="s2">&quot;:&quot;</span><span class="p">);</span>
+  <span class="kr">const</span> <span class="nx">keyBuffer</span> <span class="o">=</span> <span class="nx">Buffer</span><span class="p">.</span><span class="nx">from</span><span class="p">(</span><span class="nx">key</span><span class="p">,</span> <span class="s2">&quot;hex&quot;</span><span class="p">);</span>
+  <span class="kr">const</span> <span class="nx">derivedKey</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">scryptAsync</span><span class="p">(</span><span class="nx">password</span><span class="p">,</span> <span class="nx">salt</span><span class="p">,</span> <span class="mi">64</span><span class="p">);</span>
+  <span class="k">return</span> <span class="nx">timingSafeEqual</span><span class="p">(</span><span class="nx">keyBuffer</span><span class="p">,</span> <span class="nx">derivedKey</span><span class="p">);</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>In the <code>hashPassword</code> function above, we use a promisified version of the <code>scrypt</code> method to create a salted hash of the user’s password. The <code>verifyPassword</code> function extracts the salt and verifies that the submitted password’s hash matches the saved password’s hash. We also use <code>timingSafeEqual</code> to help protect against timing attacks when comparing the two hashes.</p>
+<p>Now we’ll import the two new password functions into <code>JsonServerApi.js</code>, and we’ll also use the previously installed validator.js package to check if a user submits a strong password when they sign up:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">ForbiddenError</span><span class="p">,</span> <span class="nx">UserInputError</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">RESTDataSource</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-datasource-rest&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">parseLinkHeader</span> <span class="nx">from</span> <span class="s2">&quot;parse-link-header&quot;</span><span class="p">;</span>
+<span class="hll"><span class="kr">import</span> <span class="nx">validator</span> <span class="nx">from</span> <span class="s2">&quot;validator&quot;</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">hashPassword</span><span class="p">,</span> <span class="nx">verifyPassword</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;../../utils/passwords.js&quot;</span><span class="p">;</span>
+</span>
+<span class="c1">// ...</span>
+</pre></div>
+
+<p>Next, we’ll update the <code>signUp</code> method to confirm password strength and validate the password. We also mark the method as <code>async</code> so we can wait for the <code>hashPassword</code> promise to resolve. Note that the <code>validate.isStrongPassword</code> method applies some default password strength criteria, but we could pass in parameters to this function if we wanted to adjust these requirements:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  
+<span class="hll">  <span class="nx">async</span> <span class="nx">signUp</span><span class="p">({</span> <span class="nx">email</span><span class="p">,</span> <span class="nx">name</span><span class="p">,</span> <span class="nx">password</span><span class="p">,</span> <span class="nx">username</span> <span class="p">})</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">validator</span><span class="p">.</span><span class="nx">isStrongPassword</span><span class="p">(</span><span class="nx">password</span><span class="p">))</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">throw</span> <span class="k">new</span> <span class="nx">UserInputError</span><span class="p">(</span>
+</span><span class="hll">        <span class="s2">&quot;Password must be a minimum of 8 characters in length and contain 1 lowercase letter, 1 uppercase letter, 1 number, and 1 special character.&quot;</span>
+</span><span class="hll">      <span class="p">);</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">passwordHash</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">hashPassword</span><span class="p">(</span><span class="nx">password</span><span class="p">);</span>
+</span><span class="hll">
+</span>    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">post</span><span class="p">(</span><span class="s2">&quot;/users&quot;</span><span class="p">,</span> <span class="p">{</span>
+      <span class="nx">email</span><span class="p">,</span>
+      <span class="nx">name</span><span class="p">,</span>
+<span class="hll">      <span class="nx">password</span><span class="o">:</span> <span class="nx">passwordHash</span><span class="p">,</span>
+</span>      <span class="nx">username</span>
+    <span class="p">});</span>
+  <span class="p">}</span>
+  
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<div class="boxout">
+<p>As a bonus challenge, you may wish to apply what you learned in the last chapter about custom Scalar types to implement a <code>Password</code> type that enforces strong password requirements instead of applying this logic in the data source method.</p>
+</div>
+<p>The new and improved <code>signUp</code> implementation is shaping up, but if we tried to run the mutation it would fail. At the moment, we’re still only returning the user data, but the schema expects an object in the shape of the new <code>AuthPayload</code> type. To fix this, we’ll need to generate a JWT to send along with the user data in the response. We’ll use the jsonwebtoken package in the <code>server</code> directory to facilitate JWT creation:</p>
+<div class="highlight"><pre><span></span>npm i jsonwebtoken@8.5.1
+</pre></div>
+
+<p>Recall that a JWT contains three parts: a header, a payload, and a signature. The signature helps ensure that the JWT isn’t tampered with before it’s returned to the server in a subsequent request. To generate the signature using a symmetric signing algorithm (<a href="https://en.wikipedia.org/wiki/HMAC">HMAC with SHA-256</a>, in our case), we have to provide a secret that must be known at the point that a JWT is created and elsewhere where the JWT is verified. The secret should be a hard-to-guess string and should be kept somewhere safe (and not committed to version control). For Bibliotech, we’ll create a random string for the secret and add it as an environment variable in the <code>.env</code> file:</p>
+<p></p>
+<div class="code-context">
+<p>server/.env</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll">JWT_SECRET=your_random_secret_here
+</span>NODE_ENV=development
+REST_API_BASE_URL=http://localhost:5000
+</pre></div>
+
+<p>Now we can modify the <code>signUp</code> method a final time to create the signed JWT and return an object containing the token and the new user’s data:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+<span class="hll"><span class="kr">import</span> <span class="nx">jwt</span> <span class="nx">from</span> <span class="s2">&quot;jsonwebtoken&quot;</span><span class="p">;</span>
+</span><span class="kr">import</span> <span class="nx">parseLinkHeader</span> <span class="nx">from</span> <span class="s2">&quot;parse-link-header&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">validator</span> <span class="nx">from</span> <span class="s2">&quot;validator&quot;</span><span class="p">;</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  
+  <span class="nx">async</span> <span class="nx">signUp</span><span class="p">({</span> <span class="nx">email</span><span class="p">,</span> <span class="nx">name</span><span class="p">,</span> <span class="nx">password</span><span class="p">,</span> <span class="nx">username</span> <span class="p">})</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">validator</span><span class="p">.</span><span class="nx">isStrongPassword</span><span class="p">(</span><span class="nx">password</span><span class="p">))</span> <span class="p">{</span>
+      <span class="k">throw</span> <span class="k">new</span> <span class="nx">UserInputError</span><span class="p">(</span>
+        <span class="s2">&quot;Password must be a minimum of 8 characters in length and contain 1 lowercase letter, 1 uppercase letter, 1 number, and 1 special character&quot;</span>
+      <span class="p">);</span>
+    <span class="p">}</span>
+
+    <span class="kr">const</span> <span class="nx">passwordHash</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">hashPassword</span><span class="p">(</span><span class="nx">password</span><span class="p">);</span>
+<span class="hll">    <span class="kr">const</span> <span class="nx">user</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">post</span><span class="p">(</span><span class="s2">&quot;/users&quot;</span><span class="p">,</span> <span class="p">{</span>
+</span>      <span class="nx">email</span><span class="p">,</span>
+      <span class="nx">name</span><span class="p">,</span>
+      <span class="nx">password</span><span class="o">:</span> <span class="nx">passwordHash</span><span class="p">,</span>
+      <span class="nx">username</span>
+    <span class="p">});</span>
+<span class="hll">    <span class="kr">const</span> <span class="nx">token</span> <span class="o">=</span> <span class="nx">jwt</span><span class="p">.</span><span class="nx">sign</span><span class="p">({</span> <span class="nx">username</span> <span class="p">},</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">JWT_SECRET</span><span class="p">,</span> <span class="p">{</span>
+</span><span class="hll">      <span class="nx">algorithm</span><span class="o">:</span> <span class="s2">&quot;HS256&quot;</span><span class="p">,</span>
+</span><span class="hll">      <span class="nx">subject</span><span class="o">:</span> <span class="nx">user</span><span class="p">.</span><span class="nx">id</span><span class="p">.</span><span class="nx">toString</span><span class="p">(),</span>
+</span><span class="hll">      <span class="nx">expiresIn</span><span class="o">:</span> <span class="s2">&quot;1d&quot;</span>
+</span><span class="hll">    <span class="p">});</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">return</span> <span class="p">{</span> <span class="nx">token</span><span class="p">,</span> <span class="nx">viewer</span><span class="o">:</span> <span class="nx">user</span> <span class="p">};</span>
+</span>  <span class="p">}</span>
+  
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>In the code above, the first argument passed into <code>jwt.sign</code> is an object containing any custom payload data. For our purposes, it will be sufficient to only add the user’s username. The signing algorithm, subject, and expiration time are included in the standard JWT options passed in as the third argument.</p>
+<p>Let’s try running the <code>signUp</code> mutation again to confirm that it hashes and store the user’s password in <code>db.json</code> and returns the JWT with the user data:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Mutation</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">mutation</span> <span class="k">SignUp</span><span class="p">(</span><span class="nv">$input</span><span class="p">:</span> <span class="k">SignUpInput</span><span class="p">!)</span> <span class="p">{</span>
+  <span class="k">signUp</span><span class="p">(</span>input: <span class="nv">$input</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">token</span>
+    <span class="k">viewer</span> <span class="p">{</span>
+      <span class="k">id</span>
+      <span class="k">email</span>
+      <span class="k">name</span>
+      <span class="k">username</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>Mutation Variables</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;input&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;email&quot;</span><span class="p">:</span> <span class="s2">&quot;scout@email.com&quot;</span><span class="p">,</span>
+    <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Scout Finch&quot;</span><span class="p">,</span>
+    <span class="nt">&quot;username&quot;</span><span class="p">:</span> <span class="s2">&quot;mockingbird60&quot;</span><span class="p">,</span>
+    <span class="nt">&quot;password&quot;</span><span class="p">:</span> <span class="s2">&quot;superHARDpa55!&quot;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>API Response</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;signUp&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">&quot;token&quot;</span><span class="p">:</span> <span class="s2">&quot;eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6Im1vY2tpbmdiaXJkNjAiLCJpYXQiOjE2MTUxNDg3OTEsImV4cCI6MTYxNTIzNTE5MSwic3ViIjoiMyJ9.E2w4IXbTZg8sxz_1iFiZSV2wYsHOwGRFzce77G6Eg6o&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;viewer&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;3&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;email&quot;</span><span class="p">:</span> <span class="s2">&quot;scout@email.com&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Scout Finch&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;username&quot;</span><span class="p">:</span> <span class="s2">&quot;mockingbird60&quot;</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>After successfully running the update mutation, try copying the <code>token</code> value into the JWT debugger on <a href="https://jwt.io">https://jwt.io</a> to confirm that it can be decoded correctly.</p>
+<h2 id="add-a-login-mutation">Add a <code>login</code> Mutation</h2>
+<p>To complement the <code>signUp</code> mutation, we’ll add a <code>login</code> mutation to allow existing users to log back into Bibliotech using their username and password. The first step will be adding a <code>login</code> field to the <code>Mutation</code> type in the schema. This field will use the same <code>AuthPayload</code> output type as the <code>signUp</code> mutation does:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="sb">  type Mutation {</span>
+<span class="sb">    # ...</span>
+<span class="hll"><span class="sb">    &quot;Authenticates an existing user.&quot;</span>
+</span><span class="hll"><span class="sb">    login(password: String!, username: String!): AuthPayload!</span>
+</span><span class="sb">    # ...</span>
+<span class="sb">  }</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>Next, we need a supporting <code>login</code> method in the <code>JsonServerApi</code> data source that will fetch a user resource based on the submitted username, verify that the hashed password stored in <code>db.json</code> matches the hash of the password string submitted with the mutation, sign a JWT for the user if the password is correct, and then return the user data and the token:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span>
+</span><span class="hll">  <span class="nx">AuthenticationError</span><span class="p">,</span>
+</span><span class="hll">  <span class="nx">ForbiddenError</span><span class="p">,</span>
+</span><span class="hll">  <span class="nx">UserInputError</span>
+</span><span class="hll"><span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+</span><span class="c1">// ...</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+<span class="hll">  
+</span><span class="hll">  <span class="nx">async</span> <span class="nx">login</span><span class="p">({</span> <span class="nx">password</span><span class="p">,</span> <span class="nx">username</span> <span class="p">})</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">user</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">getUser</span><span class="p">(</span><span class="nx">username</span><span class="p">);</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">user</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">throw</span> <span class="k">new</span> <span class="nx">AuthenticationError</span><span class="p">(</span>
+</span><span class="hll">        <span class="s2">&quot;User with that username does not exist&quot;</span>
+</span><span class="hll">      <span class="p">);</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">isValidPassword</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">verifyPassword</span><span class="p">(</span><span class="nx">password</span><span class="p">,</span> <span class="nx">user</span><span class="p">.</span><span class="nx">password</span><span class="p">);</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">isValidPassword</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">throw</span> <span class="k">new</span> <span class="nx">AuthenticationError</span><span class="p">(</span><span class="s2">&quot;Username or password is incorrect&quot;</span><span class="p">);</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">token</span> <span class="o">=</span> <span class="nx">jwt</span><span class="p">.</span><span class="nx">sign</span><span class="p">({</span> <span class="nx">username</span> <span class="p">},</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">JWT_SECRET</span><span class="p">,</span> <span class="p">{</span>
+</span><span class="hll">      <span class="nx">algorithm</span><span class="o">:</span> <span class="s2">&quot;HS256&quot;</span><span class="p">,</span>
+</span><span class="hll">      <span class="nx">subject</span><span class="o">:</span> <span class="nx">user</span><span class="p">.</span><span class="nx">id</span><span class="p">.</span><span class="nx">toString</span><span class="p">(),</span>
+</span><span class="hll">      <span class="nx">expiresIn</span><span class="o">:</span> <span class="s2">&quot;1d&quot;</span>
+</span><span class="hll">    <span class="p">});</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">return</span> <span class="p">{</span> <span class="nx">token</span><span class="p">,</span> <span class="nx">viewer</span><span class="o">:</span> <span class="nx">user</span> <span class="p">};</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>Lastly, we’ll add the new resolver for the <code>login</code> field:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  <span class="nx">Mutation</span><span class="o">:</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+<span class="hll">    <span class="nx">login</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">login</span><span class="p">(</span><span class="nx">args</span><span class="p">);</span>
+</span><span class="hll">    <span class="p">},</span>
+</span>    <span class="c1">// ...</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>Try running a <code>login</code> mutation now to authenticate an existing user:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Mutation</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">mutation</span> <span class="k">Login</span><span class="p">(</span><span class="nv">$password</span><span class="p">:</span> <span class="k">String</span><span class="p">!</span>, <span class="nv">$username</span><span class="p">:</span> <span class="k">String</span><span class="p">!)</span> <span class="p">{</span>
+  <span class="k">login</span><span class="p">(</span>password: <span class="nv">$password</span>, username: <span class="nv">$username</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">token</span>
+    <span class="k">viewer</span> <span class="p">{</span>
+      <span class="k">id</span>
+      <span class="k">email</span>
+      <span class="k">name</span>
+      <span class="k">username</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>Mutation Variables</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;username&quot;</span><span class="p">:</span> <span class="s2">&quot;mockingbird60&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;password&quot;</span><span class="p">:</span> <span class="s2">&quot;superHARDpa55!&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>API Response</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;login&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">&quot;token&quot;</span><span class="p">:</span> <span class="s2">&quot;eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6Im1vY2tpbmdiaXJkNjAiLCJpYXQiOjE2MTUxNDg5NjIsImV4cCI6MTYxNTIzNTM2Miwic3ViIjoiMyJ9.M5MRuuPLOWMyfNxEyzfqMRKzyPA4RpiZhL9d706KlrE&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;viewer&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;3&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;email&quot;</span><span class="p">:</span> <span class="s2">&quot;scout@email.com&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Scout Finch&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;username&quot;</span><span class="p">:</span> <span class="s2">&quot;mockingbird60&quot;</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Once again, you can try decoding the token on <a href="https://jwt.io">https://jwt.io</a> to confirm that the token in the response is structured as expected.</p>
+<h2 id="migrate-to-apollo-server-express">Migrate to Apollo Server Express</h2>
+<p>We can successfully issue JWTs to authenticated users now, but we don’t have any code in place to verify those tokens when they’re sent back to the server on subsequent requests yet. Ideally, incoming tokens will be intercepted and validated in a middleware in our server before GraphQL execution begins (because we don’t want to verify tokens independently in each field resolver function!). To accomplish this, we’ll upgrade from the <code>apollo-server</code> package we’ve used so far to the <code>apollo-server-express</code> package instead. Apollo Server uses Express under the hood, but using <code>apollo-server-express</code> will allow us to tap into the Express middleware API directly.</p>
+<div class="boxout">
+<p>Apollo Server also supports <a href="https://www.apollographql.com/docs/apollo-server/integrations/middleware/">integrations for many other Node.js web frameworks</a>, including Koa, hapi, and Fastify.</p>
+</div>
+<p>First, we’ll install the Express version of Apollo Server, the Express package itself, and the CORS middleware package:</p>
+<div class="highlight"><pre><span></span>npm i apollo-server-express@2.22.2 cors@2.8.5 express@4.17.1
+</pre></div>
+
+<p>Now we’ll need to update the Apollo Server imports in several files:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server-express&quot;</span><span class="p">;</span>
+</span>
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span>
+  <span class="nx">AuthenticationError</span><span class="p">,</span>
+  <span class="nx">ForbiddenError</span><span class="p">,</span>
+  <span class="nx">UserInputError</span>
+<span class="hll"><span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server-express&quot;</span><span class="p">;</span>
+</span><span class="kr">import</span> <span class="p">{</span> <span class="nx">RESTDataSource</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-datasource-rest&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">jwt</span> <span class="nx">from</span> <span class="s2">&quot;jsonwebtoken&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">parseLinkHeader</span> <span class="nx">from</span> <span class="s2">&quot;parse-link-header&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">validator</span> <span class="nx">from</span> <span class="s2">&quot;validator&quot;</span><span class="p">;</span>
+
+<span class="c1">// ...</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/directives/UniqueDirective.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">defaultFieldResolver</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql&quot;</span><span class="p">;</span>
+<span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">SchemaDirectiveVisitor</span><span class="p">,</span> <span class="nx">UserInputError</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server-express&quot;</span><span class="p">;</span>
+</span><span class="kr">import</span> <span class="nx">fetch</span> <span class="nx">from</span> <span class="s2">&quot;node-fetch&quot;</span><span class="p">;</span>
+
+<span class="c1">// ...</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/scalars/DateTimeType.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">ApolloError</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server-express&quot;</span><span class="p">;</span>
+</span><span class="kr">import</span> <span class="p">{</span> <span class="nx">GraphQLScalarType</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">validator</span> <span class="nx">from</span> <span class="s2">&quot;validator&quot;</span><span class="p">;</span>
+
+<span class="c1">// ...</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/scalars/RatingType.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">ApolloError</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server-express&quot;</span><span class="p">;</span>
+</span><span class="kr">import</span> <span class="p">{</span> <span class="nx">GraphQLScalarType</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">Kind</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql&quot;</span><span class="p">;</span>
+
+<span class="c1">// ...</span>
+</pre></div>
+
+<p>Before we set up Express, we’ll add a new environment variable for the port on which we expose the GraphQL endpoint:</p>
+<p></p>
+<div class="code-context">
+<p>server/.env</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll">GRAPHQL_API_PORT=4000
+</span>JWT_SECRET=your_random_secret_here
+NODE_ENV=development
+REST_API_BASE_URL=http://localhost:5000
+</pre></div>
+
+<p>To configure Express, we’ll need to make some changes to the main <code>index.js</code> file. First, we’ll need to import <code>cors</code> and <code>express</code> and then create an Express application. If you’re using Explorer as your GraphQL IDE, you’ll need to allow the Apollo Studio URL as an origin. We will also preemptively enable CORS for <a href="http://localhost:3000">http://localhost:3000</a> because this is the port we’ll run the React application on in the next chapter. Finally, instead of calling the <code>listen</code> method on the <code>server</code>, we now apply the Express instance and the CORS middleware to the server, then call a <code>listen</code> method on the Express <code>app</code> instead:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">ApolloServer</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server-express&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="nx">cors</span> <span class="nx">from</span> <span class="s2">&quot;cors&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="nx">express</span> <span class="nx">from</span> <span class="s2">&quot;express&quot;</span><span class="p">;</span>
+</span>
+<span class="c1">// ...</span>
+
+<span class="hll"><span class="kr">const</span> <span class="nx">port</span> <span class="o">=</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">GRAPHQL_API_PORT</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">const</span> <span class="nx">app</span> <span class="o">=</span> <span class="nx">express</span><span class="p">();</span>
+</span><span class="hll">
+</span><span class="hll"><span class="k">if</span> <span class="p">(</span><span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">NODE_ENV</span> <span class="o">===</span> <span class="s2">&quot;development&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">  <span class="nx">app</span><span class="p">.</span><span class="nx">use</span><span class="p">(</span>
+</span><span class="hll">    <span class="nx">cors</span><span class="p">({</span>
+</span><span class="hll">      <span class="nx">origin</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;https://studio.apollographql.com&quot;</span><span class="p">,</span> <span class="s2">&quot;http://localhost:3000&quot;</span><span class="p">]</span>
+</span><span class="hll">    <span class="p">})</span>
+</span><span class="hll">  <span class="p">);</span>
+</span><span class="hll"><span class="p">}</span>
+</span><span class="hll">
+</span><span class="kr">const</span> <span class="nx">server</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">ApolloServer</span><span class="p">({</span>
+  <span class="c1">// ...</span>
+<span class="p">});</span>
+
+<span class="hll"><span class="nx">server</span><span class="p">.</span><span class="nx">applyMiddleware</span><span class="p">({</span> <span class="nx">app</span><span class="p">,</span> <span class="nx">cors</span><span class="o">:</span> <span class="kc">false</span> <span class="p">});</span>
+</span><span class="hll">
+</span><span class="hll"><span class="nx">app</span><span class="p">.</span><span class="nx">listen</span><span class="p">({</span> <span class="nx">port</span> <span class="p">},</span> <span class="p">()</span> <span class="p">=&gt;</span>
+</span><span class="hll">  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="sb">`Server ready at http://localhost:</span><span class="si">${</span><span class="nx">port</span><span class="si">}${</span><span class="nx">server</span><span class="p">.</span><span class="nx">graphqlPath</span><span class="si">}</span><span class="sb">`</span><span class="p">)</span>
+</span><span class="hll"><span class="p">);</span>
+</span></pre></div>
+
+<p>Note that we set <code>cors: false</code> on the Apollo Server here to override its CORS defaults so we can use our custom CORS settings instead. If we restart the server now, we should see that everything works as it did before.</p>
+<h2 id="set-valid-decoded-jwts-on-apollo-servers-context">Set Valid, Decoded JWTs on Apollo Server’s Context</h2>
+<p>Now that we’re up and running with Express, we can take advantage of a ready-made middleware package that will validate an incoming JWT, decode it, and add that value to the <code>req</code> object as a <code>user</code> property. To begin, we’ll install <code>express-jwt</code> in the <code>server</code> directory:</p>
+<div class="highlight"><pre><span></span>npm i express-jwt@6.0.0
+</pre></div>
+
+<p>Next, we’ll add the middleware to the main <code>index.js</code> file, using the same secret that was used to sign the JWT in the <code>signUp</code> and <code>login</code> mutations, choosing the same signing algorithm, and setting the <code>credentialsRequired</code> option to <code>false</code> so Express won’t throw an error if a JWT hasn’t been included (which would be the case for requests from the React application the don’t require authentication or when Explorer polls for schema updates):</p>
+<p></p>
+<div class="code-context">
+<p>server/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+<span class="hll"><span class="kr">import</span> <span class="nx">expressJwt</span> <span class="nx">from</span> <span class="s2">&quot;express-jwt&quot;</span><span class="p">;</span>
+</span>
+<span class="c1">// ...</span>
+
+<span class="hll"><span class="nx">app</span><span class="p">.</span><span class="nx">use</span><span class="p">(</span>
+</span><span class="hll">  <span class="nx">expressJwt</span><span class="p">({</span>
+</span><span class="hll">    <span class="nx">secret</span><span class="o">:</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">JWT_SECRET</span><span class="p">,</span>
+</span><span class="hll">    <span class="nx">algorithms</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;HS256&quot;</span><span class="p">],</span>
+</span><span class="hll">    <span class="nx">credentialsRequired</span><span class="o">:</span> <span class="kc">false</span>
+</span><span class="hll">  <span class="p">}),</span>
+</span><span class="hll">  <span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">,</span> <span class="nx">next</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">if</span> <span class="p">(</span><span class="nx">err</span><span class="p">.</span><span class="nx">code</span> <span class="o">===</span> <span class="s2">&quot;invalid_token&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">next</span><span class="p">();</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">    <span class="k">return</span> <span class="nx">next</span><span class="p">(</span><span class="nx">err</span><span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll"><span class="p">);</span>
+</span><span class="hll">
+</span><span class="kr">const</span> <span class="nx">server</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">ApolloServer</span><span class="p">({</span>
+  <span class="c1">// ...</span>
+<span class="p">});</span>
+
+<span class="c1">// ...</span>
+</pre></div>
+
+<p>The second argument to <code>app.use</code> adds some custom error-handling logic when managing authorized access to the Express application. We must do this because by default <code>express-jwt</code> will throw an error if a token is invalid, even with <code>credentialsRequired</code> set to <code>false</code>. We don’t want Express to throw an error at this point in the request execution if the user submits an invalid token (for instance, if the token has exceeded its expiration time), so we must do some extra error handling here.</p>
+<p>Once the decoded JWT is available on the request object, we need to make Apollo Server aware of it so the token data can be used by resolvers to determine if a user is allowed to make a particular request to the API. With Apollo Server, it’s a common practice to add decoded JWTs to its <code>context</code> object because this object is conveniently available in every resolver function as the third parameter. The <code>context</code> object is recreated with every request so we won’t have to worry about access tokens going stale either.</p>
+<p>To add data to this object, we’ll set the <code>context</code> property on the Apollo Server that we instantiate. This property’s value can either be an object or a function that returns an object. We’ll use a function as a value here because this function’s parameter will have access to the <code>req</code> object from <code>Express</code> and we can access the token that was decoded and validated by the Express middleware on the <code>user</code> property of that object:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">const</span> <span class="nx">server</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">ApolloServer</span><span class="p">({</span>
+  <span class="nx">typeDefs</span><span class="p">,</span>
+  <span class="nx">resolvers</span><span class="p">,</span>
+  <span class="nx">dataSources</span><span class="o">:</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="p">{</span>
+      <span class="nx">jsonServerApi</span><span class="o">:</span> <span class="k">new</span> <span class="nx">JsonServerApi</span><span class="p">()</span>
+    <span class="p">};</span>
+  <span class="p">},</span>
+  <span class="nx">schemaDirectives</span><span class="o">:</span> <span class="p">{</span>
+    <span class="nx">unique</span><span class="o">:</span> <span class="nx">UniqueDirective</span>
+<span class="hll">  <span class="p">},</span>
+</span><span class="hll">  <span class="nx">context</span><span class="o">:</span> <span class="p">({</span> <span class="nx">req</span> <span class="p">})</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">user</span> <span class="o">=</span> <span class="nx">req</span><span class="p">.</span><span class="nx">user</span> <span class="o">||</span> <span class="kc">null</span><span class="p">;</span>
+</span><span class="hll">    <span class="k">return</span> <span class="p">{</span> <span class="nx">user</span> <span class="p">};</span>
+</span>  <span class="p">}</span>
+<span class="p">});</span>
+
+<span class="c1">// ...</span>
+</pre></div>
+
+<p>With this code in place, whenever a valid token is submitted in an <code>Authorization</code> header on a request to the Bibliotech API, every resolver function will be able to access data about that user.</p>
+<h2 id="add-a-viewer-query">Add a <code>viewer</code> Query</h2>
+<p>It’s time to put that user data to use now! We’re going to add a final field to the <code>Query</code> type that will return data about an authenticated user. To do that, we’ll first add a <code>viewer</code> field to the schema:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server-express&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="sb">  type Query {</span>
+<span class="sb">    # ...</span>
+<span class="hll"><span class="sb">    &quot;Retrieves the currently authenticated user.&quot;</span>
+</span><span class="hll"><span class="sb">    viewer: User</span>
+</span><span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>We won’t need to add a new method to the <code>JsonServerApi</code> data source to help resolve this field. Instead, we can use the existing <code>getUser</code> method in the <code>viewer</code> resolver, but we’ll destructure the <code>user</code> out of the <code>context</code> parameter and get the <code>username</code> value from the decoded JWT instead of getting the user’s username value from the <code>args</code> parameter:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  <span class="nx">Query</span><span class="o">:</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+    <span class="nx">user</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="p">{</span> <span class="nx">username</span> <span class="p">},</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getUser</span><span class="p">(</span><span class="nx">username</span><span class="p">);</span>
+<span class="hll">    <span class="p">},</span>
+</span><span class="hll">    <span class="nx">viewer</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span><span class="p">,</span> <span class="nx">user</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">if</span> <span class="p">(</span><span class="nx">user</span><span class="o">?</span><span class="p">.</span><span class="nx">username</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">        <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getUser</span><span class="p">(</span><span class="nx">user</span><span class="p">.</span><span class="nx">username</span><span class="p">);</span>
+</span><span class="hll">      <span class="p">}</span>
+</span><span class="hll">      <span class="k">return</span> <span class="kc">null</span><span class="p">;</span>
+</span>    <span class="p">}</span>
+  <span class="p">},</span>
+  <span class="c1">// ...</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>To test out this mutation, we’ll need to add a JWT to the <code>Authorization</code> header of the request sent from Explorer (similar steps may be followed for other GraphQL IDEs as well). In JSON format, the <code>Authorization</code> header must be structured as follows with the word <code>Bearer</code> in front of the token and a space in between:</p>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;Authorization&quot;</span><span class="p">:</span> <span class="s2">&quot;Bearer eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VybmFtZSI6Im1vY2tpbmdiaXJkNjAiLCJpYXQiOjE2MTUxNDg5NjIsImV4cCI6MTYxNTIzNTM2Miwic3ViIjoiMyJ9.M5MRuuPLOWMyfNxEyzfqMRKzyPA4RpiZhL9d706KlrE&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>First, log in an existing user using the <code>login</code> mutation and then copy the <code>token</code> value from the response. Next, open the Headers panel and add the header name and value:</p>
+<p><img src="../../images/screenshots/apollo-explorer-headers.png" alt="Headers panel in Apollo Studio Explorer" /><br />
+</p>
+<p>Now try running a <code>viewer</code> query to get information about the currently authenticated user based on that token:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Query</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">query</span> <span class="k">GetViewer</span> <span class="p">{</span>
+  <span class="k">viewer</span> <span class="p">{</span>
+    <span class="k">id</span>
+    <span class="k">email</span>
+    <span class="k">name</span>
+    <span class="k">username</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>API Response</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;viewer&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;3&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;email&quot;</span><span class="p">:</span> <span class="s2">&quot;scout@email.com&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Scout Finch&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;username&quot;</span><span class="p">:</span> <span class="s2">&quot;mockingbird60&quot;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Ultimately, the <code>viewer</code> query will give us a more secure way to get information about a currently authenticated user, because the username value is retrieved from the signed JWT on the server, rather than relying on the client to send the correct username variable in a <code>user</code> query (which could potentially be tampered with by bad actors).</p>
+<h2 id="add-graphql-shield-for-authorization">Add GraphQL Shield for Authorization</h2>
+<p>We now have a way to identify users based on their JWTs, but we still don’t have any mechanism to limit API access to authenticated users. Our final order of business in this chapter will be to add authorization to the Bibliotech GraphQL API so that users will only be able to perform the actions that the application’s business rules allow.</p>
+<p>We have a few options available for adding authorization to a GraphQL API. We could explicitly check the authenticated user’s ID and any related permission data inside of each resolver and then throw an <code>AuthenticationError</code> as needed, but this wouldn’t be very DRY. Alternatively, a popular option for adding authorization to GraphQL APIs involves adding <a href="https://www.apollographql.com/docs/apollo-server/security/authentication/#authorization-via-custom-directives">custom schema directives</a> to control access to various types and fields.</p>
+<p>Yet another option is to abstract authorization into a separate layer and add it as resolver middleware, allowing us to check if a user is authorized to access a field when its resolver function is invoked. Just as we can apply middleware to an Express instance to intercept and alter its requests and responses, we call apply middleware directly to a GraphQL API to alter field resolution. This is the approach we’ll choose and we’ll implement it using a library called <a href="https://github.com/maticzav/graphql-shield">GraphQL Shield</a>.</p>
+<p>We’ll need to install two more packages to add authorization:</p>
+<div class="highlight"><pre><span></span>npm i graphql-middleware@6.0.4 graphql-shield@7.5.0
+</pre></div>
+
+<p>Next, we’ll create a <code>permissions.js</code> file in the <code>server/src/graphql</code> directory to create a set of rules that check if a user is authorized to take specific actions before running field resolvers. First, we’ll create a rule that checks if a user is authenticated and then apply that rule to the <code>user</code> and <code>searchPeople</code> queries because we only want registered Bibliotech users to be able to view other users:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/permissions.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">rule</span><span class="p">,</span> <span class="nx">shield</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql-shield&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">isAuthenticated</span> <span class="o">=</span> <span class="nx">rule</span><span class="p">()((</span><span class="nx">parent</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">user</span> <span class="p">})</span> <span class="p">=&gt;</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="nx">user</span> <span class="o">!==</span> <span class="kc">null</span><span class="p">;</span>
+<span class="p">});</span>
+
+<span class="kr">const</span> <span class="nx">permissions</span> <span class="o">=</span> <span class="nx">shield</span><span class="p">(</span>
+  <span class="p">{</span>
+    <span class="nx">Query</span><span class="o">:</span> <span class="p">{</span>
+      <span class="nx">searchPeople</span><span class="o">:</span> <span class="nx">isAuthenticated</span><span class="p">,</span>
+      <span class="nx">user</span><span class="o">:</span> <span class="nx">isAuthenticated</span>
+    <span class="p">}</span>
+  <span class="p">},</span>
+  <span class="p">{</span> <span class="nx">debug</span><span class="o">:</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">NODE_ENV</span> <span class="o">===</span> <span class="s2">&quot;development&quot;</span> <span class="p">}</span>
+<span class="p">);</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">permissions</span><span class="p">;</span>
+</pre></div>
+
+<p>GraphQL Shield’s <code>rule</code> function has all of the same parameters as a resolver function, so we can destructure the <code>user</code> object from the <code>context</code> parameter as we would in a resolver, and then check that the user is not <code>null</code>. Otherwise, we will return <code>false</code> to throw an authorization error for this rule.</p>
+<p>To apply our new authorization rule, we must use the <code>applyMiddleware</code> function from GraphQL Middleware to add the <code>permissions</code> middleware to the schema. To use the <code>applyMiddleware</code> function on a schema, we must manually create our <em>executable schema</em> first (rather than allowing Apollo Server to do this for us), then apply our <code>permissions</code> middleware to it, and then pass the result into the <code>ApolloServer</code> constructor on as the <code>schema</code> option, rather than passing the <code>typeDefs</code> and <code>resolvers</code> into <code>ApolloServer</code> directly.</p>
+<p>To do this, we need to update the imports at the top of the main <code>index.js</code> file:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">ApolloServer</span><span class="p">,</span> <span class="nx">makeExecutableSchema</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server-express&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">applyMiddleware</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql-middleware&quot;</span><span class="p">;</span>
+</span><span class="kr">import</span> <span class="nx">cors</span> <span class="nx">from</span> <span class="s2">&quot;cors&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">express</span> <span class="nx">from</span> <span class="s2">&quot;express&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">expressJwt</span> <span class="nx">from</span> <span class="s2">&quot;express-jwt&quot;</span><span class="p">;</span>
+
+<span class="kr">import</span> <span class="nx">JsonServerApi</span> <span class="nx">from</span> <span class="s2">&quot;./graphql/dataSources/JsonServerApi.js&quot;</span><span class="p">;</span>
+<span class="hll"><span class="kr">import</span> <span class="nx">permissions</span> <span class="nx">from</span> <span class="s2">&quot;./graphql/permissions.js&quot;</span><span class="p">;</span>
+</span><span class="c1">// ...</span>
+</pre></div>
+
+<p>Next, we’ll create a new <code>schema</code> variable and set it to the value of calling <code>makeExecutableSchema</code> on our <code>typeDefs</code>, <code>resolvers</code>, and <code>schemaDirectives</code>. We can then remove those same properties from the <code>ApolloServer</code> constructor, and instead set a <code>schema</code> property with a value that is the executable schema we just created with the <code>permissions</code> applied as middleware:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="hll"><span class="kr">const</span> <span class="nx">schema</span> <span class="o">=</span> <span class="nx">makeExecutableSchema</span><span class="p">({</span>
+</span><span class="hll">  <span class="nx">typeDefs</span><span class="p">,</span>
+</span><span class="hll">  <span class="nx">resolvers</span><span class="p">,</span>
+</span><span class="hll">  <span class="nx">schemaDirectives</span><span class="o">:</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">unique</span><span class="o">:</span> <span class="nx">UniqueDirective</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll"><span class="p">});</span>
+</span><span class="hll"><span class="kr">const</span> <span class="nx">schemaWithPermissions</span> <span class="o">=</span> <span class="nx">applyMiddleware</span><span class="p">(</span><span class="nx">schema</span><span class="p">,</span> <span class="nx">permissions</span><span class="p">);</span>
+</span><span class="hll">
+</span><span class="kr">const</span> <span class="nx">server</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">ApolloServer</span><span class="p">({</span>
+<span class="hll">  <span class="nx">schema</span><span class="o">:</span> <span class="nx">schemaWithPermissions</span><span class="p">,</span>
+</span>  <span class="nx">dataSources</span><span class="o">:</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="p">{</span>
+      <span class="nx">jsonServerApi</span><span class="o">:</span> <span class="k">new</span> <span class="nx">JsonServerApi</span><span class="p">()</span>
+    <span class="p">};</span>
+  <span class="p">},</span>
+  <span class="nx">context</span><span class="o">:</span> <span class="p">({</span> <span class="nx">req</span> <span class="p">})</span> <span class="p">=&gt;</span> <span class="p">{</span>
+    <span class="kr">const</span> <span class="nx">user</span> <span class="o">=</span> <span class="nx">req</span><span class="p">.</span><span class="nx">user</span> <span class="o">||</span> <span class="kc">null</span><span class="p">;</span>
+    <span class="k">return</span> <span class="p">{</span> <span class="nx">user</span> <span class="p">};</span>
+  <span class="p">}</span>
+<span class="p">});</span>
+
+<span class="c1">// ...</span>
+</pre></div>
+
+<p>After restarting the server, try running the following query without a valid JWT in the <code>Authorization</code> header:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Query</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">query</span> <span class="k">GetUser</span><span class="p">(</span><span class="nv">$username</span><span class="p">:</span> <span class="k">String</span><span class="p">!)</span> <span class="p">{</span>
+  <span class="k">user</span><span class="p">(</span>username: <span class="nv">$username</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">id</span>
+    <span class="k">name</span>
+    <span class="k">username</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>Query Variables</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;username&quot;</span><span class="p">:</span> <span class="s2">&quot;rabbithole84&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>API Response</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="s2">&quot;errors&quot;</span><span class="o">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="s2">&quot;message&quot;</span><span class="o">:</span> <span class="s2">&quot;Not Authorised!&quot;</span><span class="p">,</span>
+      <span class="c1">// ...</span>
+    <span class="p">}</span>
+  <span class="p">],</span>
+  <span class="s2">&quot;data&quot;</span><span class="o">:</span> <span class="p">{</span>
+    <span class="s2">&quot;user&quot;</span><span class="o">:</span> <span class="kc">null</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Try running the query again with a valid JWT in the header and you’ll see that it returns the data as expected. We can also use the same <code>isAuthenticated</code> rule to prevent unauthenticated users from creating authors, books, and reviews:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/permissions.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">rule</span><span class="p">,</span> <span class="nx">shield</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql-shield&quot;</span><span class="p">;</span>
+
+<span class="c1">// ...</span>
+
+<span class="kr">const</span> <span class="nx">permissions</span> <span class="o">=</span> <span class="nx">shield</span><span class="p">(</span>
+  <span class="p">{</span>
+    <span class="nx">Query</span><span class="o">:</span> <span class="p">{</span>
+      <span class="nx">searchPeople</span><span class="o">:</span> <span class="nx">isAuthenticated</span><span class="p">,</span>
+      <span class="nx">user</span><span class="o">:</span> <span class="nx">isAuthenticated</span>
+<span class="hll">    <span class="p">},</span>
+</span><span class="hll">    <span class="nx">Mutation</span><span class="o">:</span> <span class="p">{</span>
+</span><span class="hll">      <span class="nx">createAuthor</span><span class="o">:</span> <span class="nx">isAuthenticated</span><span class="p">,</span>
+</span><span class="hll">      <span class="nx">createBook</span><span class="o">:</span> <span class="nx">isAuthenticated</span><span class="p">,</span>
+</span><span class="hll">      <span class="nx">createReview</span><span class="o">:</span> <span class="nx">isAuthenticated</span>
+</span>    <span class="p">}</span>
+  <span class="p">},</span>
+  <span class="p">{</span> <span class="nx">debug</span><span class="o">:</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">NODE_ENV</span> <span class="o">===</span> <span class="s2">&quot;development&quot;</span> <span class="p">}</span>
+<span class="p">);</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">permissions</span><span class="p">;</span>
+</pre></div>
+
+<p>Now let’s add two additional rules to ensure that users can only edit resources that they own. The first will prevent users from adding or removing books from other users’ libraries. To enforce this rule, we’ll need to confirm that the <code>user.sub</code> value from the context matches the <code>userId</code> submitted in the mutation arguments:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/permissions.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">rule</span><span class="p">,</span> <span class="nx">shield</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql-shield&quot;</span><span class="p">;</span>
+
+<span class="c1">// ...</span>
+
+<span class="hll"><span class="kr">const</span> <span class="nx">isUpdatingOwnLibrary</span> <span class="o">=</span> <span class="nx">rule</span><span class="p">()(</span>
+</span><span class="hll">  <span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="p">{</span> <span class="nx">input</span><span class="o">:</span> <span class="p">{</span> <span class="nx">userId</span> <span class="p">}</span> <span class="p">},</span> <span class="p">{</span> <span class="nx">user</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">return</span> <span class="nx">user</span><span class="o">?</span><span class="p">.</span><span class="nx">sub</span> <span class="o">===</span> <span class="nx">userId</span><span class="p">;</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll"><span class="p">);</span>
+</span><span class="hll">
+</span><span class="c1">// ...</span>
+</pre></div>
+
+<p>To apply both the <code>isAuthenticated</code> and <code>isUpdatingOwnLibrary</code> rules to a single field, we’ll need to use GraphQL Shield’s <code>and</code> function:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/permissions.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">and</span><span class="p">,</span> <span class="nx">rule</span><span class="p">,</span> <span class="nx">shield</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql-shield&quot;</span><span class="p">;</span>
+</span>
+<span class="c1">// ...</span>
+
+<span class="kr">const</span> <span class="nx">permissions</span> <span class="o">=</span> <span class="nx">shield</span><span class="p">(</span>
+  <span class="p">{</span>
+    <span class="c1">// ...</span>
+    <span class="nx">Mutation</span><span class="o">:</span> <span class="p">{</span>
+<span class="hll">      <span class="nx">addBooksToLibrary</span><span class="o">:</span> <span class="nx">and</span><span class="p">(</span><span class="nx">isAuthenticated</span><span class="p">,</span> <span class="nx">isUpdatingOwnLibrary</span><span class="p">),</span>
+</span>      <span class="nx">createAuthor</span><span class="o">:</span> <span class="nx">isAuthenticated</span><span class="p">,</span>
+      <span class="nx">createBook</span><span class="o">:</span> <span class="nx">isAuthenticated</span><span class="p">,</span>
+<span class="hll">      <span class="nx">createReview</span><span class="o">:</span> <span class="nx">isAuthenticated</span><span class="p">,</span>
+</span><span class="hll">      <span class="nx">removeBooksFromLibrary</span><span class="o">:</span> <span class="nx">and</span><span class="p">(</span><span class="nx">isAuthenticated</span><span class="p">,</span> <span class="nx">isUpdatingOwnLibrary</span><span class="p">)</span>
+</span>    <span class="p">}</span>
+  <span class="p">},</span>
+  <span class="p">{</span> <span class="nx">debug</span><span class="o">:</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">NODE_ENV</span> <span class="o">===</span> <span class="s2">&quot;development&quot;</span> <span class="p">}</span>
+<span class="p">);</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">permissions</span><span class="p">;</span>
+</pre></div>
+
+<p>The second and final rule that we’ll add will confirm that a user is updating or deleting their review. We can implement an <code>isEditingOwnReview</code> review as follows, using the <code>id</code> of the review to determine who owns it, and comparing it to the <code>user.sub</code> value:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/permissions.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">and</span><span class="p">,</span> <span class="nx">rule</span><span class="p">,</span> <span class="nx">shield</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql-shield&quot;</span><span class="p">;</span>
+
+<span class="c1">// ...</span>
+
+<span class="hll"><span class="kr">const</span> <span class="nx">isEditingOwnReview</span> <span class="o">=</span> <span class="nx">rule</span><span class="p">()(</span>
+</span><span class="hll">  <span class="nx">async</span> <span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span><span class="p">,</span> <span class="nx">user</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">id</span> <span class="o">=</span> <span class="nx">args</span><span class="p">.</span><span class="nx">input</span> <span class="o">?</span> <span class="nx">args</span><span class="p">.</span><span class="nx">input</span><span class="p">.</span><span class="nx">id</span> <span class="o">:</span> <span class="nx">args</span><span class="p">.</span><span class="nx">id</span><span class="p">;</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">review</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getReviewById</span><span class="p">(</span><span class="nx">id</span><span class="p">);</span>
+</span><span class="hll">    <span class="k">return</span> <span class="nx">user</span><span class="p">.</span><span class="nx">sub</span> <span class="o">===</span> <span class="nx">review</span><span class="p">.</span><span class="nx">userId</span><span class="p">.</span><span class="nx">toString</span><span class="p">();</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll"><span class="p">);</span>
+</span><span class="hll">
+</span><span class="kr">const</span> <span class="nx">permissions</span> <span class="o">=</span> <span class="nx">shield</span><span class="p">(</span>
+  <span class="p">{</span>
+    <span class="c1">// ...</span>
+    <span class="nx">Mutation</span><span class="o">:</span> <span class="p">{</span>
+      <span class="c1">// ...</span>
+<span class="hll">      <span class="nx">deleteReview</span><span class="o">:</span> <span class="nx">and</span><span class="p">(</span><span class="nx">isAuthenticated</span><span class="p">,</span> <span class="nx">isEditingOwnReview</span><span class="p">),</span>
+</span><span class="hll">      <span class="nx">removeBooksFromLibrary</span><span class="o">:</span> <span class="nx">and</span><span class="p">(</span><span class="nx">isAuthenticated</span><span class="p">,</span> <span class="nx">isUpdatingOwnLibrary</span><span class="p">),</span>
+</span><span class="hll">      <span class="nx">updateReview</span><span class="o">:</span> <span class="nx">and</span><span class="p">(</span><span class="nx">isAuthenticated</span><span class="p">,</span> <span class="nx">isEditingOwnReview</span><span class="p">)</span>
+</span>    <span class="p">}</span>
+  <span class="p">},</span>
+  <span class="p">{</span> <span class="nx">debug</span><span class="o">:</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">NODE_ENV</span> <span class="o">===</span> <span class="s2">&quot;development&quot;</span> <span class="p">}</span>
+<span class="p">);</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">permissions</span><span class="p">;</span>
+</pre></div>
+
+<p>Login as an existing user and try adding or removing books from another user’s library and also try updating or deleting another user’s reviews before moving on. You should see the <code>Not Authorised!</code> error thrown for each mutation, but still run the mutation successfully when editing the resources that the user owns.</p>
+<h2 id="summary">Summary</h2>
+<p>Throughout this chapter, we transformed the Bibliotech GraphQL API into a more production-ready state by adding user passwords on sign-up and creating JWTs for authentication purposes. We used Express middleware to validate incoming JWTs, and also added a new <code>login</code> mutation and <code>viewer</code> query to provide data about an authenticated user. Lastly, we added authorization to several fields using GraphQL Shield and applied those permissions to the API as middleware.</p>
+<p>In the next chapter, we’ll finally turn our attention to the client side and use Apollo Client to build out the new React application for Bibliotech.</p>
+<footer>
+<p class="copyright">Copyright © 2021 <a href="https://8bit.press/">8-Bit Press Inc.</a> All rights reserved.</p>
+</footer>
+</div>
+</div>
+<script>
+(function () {
+  "use strict";
+
+  const chapter = document.getElementById("chapter");
+
+  // Set width of fixed-position chapter navigation based on parent
+  function setChapterNavWidth() {
+    const chapterNav = document.getElementsByClassName("chapter-nav")[0];
+    let { width: chapterWidth } = chapter.getBoundingClientRect();
+    chapterNav.setAttribute(
+      "style",
+      `width: ${chapterWidth >= 960 ? chapterWidth * 0.3 + 36 + "px" : "100%"}`
+    );
+  }
+
+  setChapterNavWidth();
+  window.addEventListener("resize", setChapterNavWidth);
+
+  // Open and close the book navigation in the masthead
+  const openMastheadButton = document.getElementById("masthead-open");
+  const closeMastheadButton = document.getElementById("masthead-close");
+  const masthead = document.getElementById("masthead");
+
+  openMastheadButton.addEventListener("click", function (event) {
+    event.stopPropagation();
+    masthead.style.marginLeft = "0px";
+  });
+
+  closeMastheadButton.addEventListener("click", function () {
+    masthead.style.marginLeft = "-100%";
+  });
+
+  chapter.addEventListener("click", function () {
+    if (masthead.style.marginLeft === "0px") {
+      masthead.style.marginLeft = "-100%";
+    }
+  });
+
+  // Add "Copy" button to code snippets
+  // Reference: https://tomspencer.dev/blog/2018/09/14/adding-click-to-copy-buttons-to-a-hugo-powered-blog/
+  if (!document.queryCommandSupported("copy")) {
+    return;
+  }
+
+  function flashCopyMessage(el, msg) {
+    el.textContent = msg;
+    setTimeout(function () {
+      el.textContent = "Copy";
+    }, 1000);
+  }
+
+  function selectText(node) {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return selection;
+  }
+
+  function addCopyButton(containerEl) {
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "highlight-copy-btn";
+    copyBtn.textContent = "Copy";
+
+    var codeEl = containerEl.firstElementChild;
+    copyBtn.addEventListener("click", function () {
+      try {
+        const selection = selectText(codeEl);
+        document.execCommand("copy");
+        selection.removeAllRanges();
+
+        flashCopyMessage(copyBtn, "Copied!");
+      } catch (e) {
+        console && console.log(e);
+        flashCopyMessage(copyBtn, "Failed :'(");
+      }
+    });
+
+    containerEl.appendChild(copyBtn);
+  }
+
+  // Add copy button to code blocks
+  var highlightBlocks = document.getElementsByClassName("highlight");
+  Array.prototype.forEach.call(highlightBlocks, addCopyButton);
+})();
+</script>
+</body>
+</html>

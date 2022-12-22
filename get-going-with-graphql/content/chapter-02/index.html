@@ -1,0 +1,1058 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US" xml:lang="en-US">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="../../images/favicon.ico" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Mandi Wise" />
+  <title>Get Going with GraphQL</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <link rel="stylesheet" href="../../css/web.min.css" />
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<div id="masthead">
+<div class="close-button-wrapper">
+<button id="masthead-close" type="button"><span>Close</span></button>
+</div>
+<header id="title-block-header">
+<h1 class="title">Get Going with GraphQL</h1>
+<p class="subtitle">Learn How to Build JavaScript Applications with Apollo Server and Apollo Client</p>
+<p class="author">Mandi Wise</p>
+</header>
+<nav class="book-nav">
+<ol class="front-matter-content">
+<li><a href="../preface/index.html">Preface</a></li>
+</ol>
+<ol class="main-matter-content">
+<li><a href="../chapter-01/index.html">Up and Running with GraphQL and Apollo Server</a></li>
+<li><a href="../chapter-02/index.html">More on Queries</a></li>
+<li><a href="../chapter-03/index.html">Mutating Data</a></li>
+<li><a href="../chapter-04/index.html">Pagination and Search Queries</a></li>
+<li><a href="../chapter-05/index.html">Documentation, Custom Scalars, and Custom Directives</a></li>
+<li><a href="../chapter-06/index.html">Authentication and Authorization</a></li>
+<li><a href="../chapter-07/index.html">React App Set-up</a></li>
+<li><a href="../chapter-08/index.html">Apollo Client with User Authentication</a></li>
+<li><a href="../chapter-09/index.html">Pagination, Mutations, and the Apollo Client Cache</a></li>
+<li><a href="../chapter-10/index.html">Real-time Updates with Subscriptions</a></li>
+</ol>
+<ol class="back-matter-content">
+<li><a href="../appendix-a/index.html">Appendix A</a></li>
+<li><a href="../about-the-author/index.html">About the Author</a></li>
+<li><a href="../changelog/index.html">Changelog</a></li>
+</ol>
+<img src="../../images/8bp-logo-white.svg" class="logo" alt="8-Bit Press Inc. logo" />
+</nav>
+</div>
+<div id="chapter">
+<div class="chapter-nav">
+<nav id="TOC" role="doc-toc">
+<button id="masthead-open" type="button"><span>Book Navigation</span></button>
+<h2 id="toc-title">Contents</h2>
+<ul>
+<li><a href="#more-on-queries">Chapter 2: More on Queries</a>
+<ul>
+<li><a href="#best-practice-design-the-schema-with-clients-in-mind">Best Practice: Design the Schema with Clients in Mind</a></li>
+<li><a href="#organize-code-with-an-apollo-data-source">Organize Code with an Apollo Data Source</a></li>
+<li><a href="#add-a-review-type-definition">Add a <code>Review</code> Type Definition</a></li>
+<li><a href="#add-a-user-type-definition">Add a <code>User</code> Type Definition</a></li>
+<li><a href="#best-practice-use-operation-names-and-variables">Best Practice: Use Operation Names and Variables</a></li>
+<li><a href="#dryer-operations-with-fragments">DRYer Operations with Fragments</a></li>
+<li><a href="#summary">Summary</a></li>
+</ul></li>
+</ul>
+</nav>
+</div>
+<div class="content">
+<h1 id="more-on-queries">Chapter 2: More on Queries</h1>
+<div class="boxout">
+<p>In this chapter, we will:</p>
+<ul>
+<li>Understand how to design a GraphQL schema in a client-focused way</li>
+<li>Use an Apollo <code>RESTDataSource</code> to encapsulate data fetching from the REST API</li>
+<li>Add additional types and fields to the API for reviews and users</li>
+<li>Use operation names and variables</li>
+<li>Use fragments to reuse field selections across operations</li>
+</ul>
+</div>
+<h2 id="best-practice-design-the-schema-with-clients-in-mind">Best Practice: Design the Schema with Clients in Mind</h2>
+<p>So far we’ve added some basic <code>Author</code> and <code>Book</code> type definitions to a schema, along with queries to fetch authors and books individually by IDs or as a complete list. And it would be fair to say that these queries seem a bit REST-like given that they mirror what could be fetched by sending <code>GET</code> requests to the <code>/authors</code> or <code>/books</code> endpoints of the old Bibliotech API.</p>
+<p>However, one of the superpowers of GraphQL is that it allows you to design your API with client use cases in mind. We typically want to prevent the types and fields in our GraphQL API from being unduly influenced by the implementation details of their backing data sources. Bibliotech will only have a single React application, so as we move forward and add new types and fields to the API we will do so with an eye for the product experiences we are trying to drive via that client.</p>
+<p>The best way to find out how to design a GraphQL API in a client-focused manner is to talk to the actual client developers who have built (or will build) the application that consumes the GraphQL API. Given that we will also be the client developers in this case, let’s temporarily put on that hat and determine what the ideal shape of an API response would be when populating various views in the app with the necessary data.</p>
+<p>To begin, let’s consider some of the key features of the Bibliotech client application:</p>
+<ul>
+<li>Display a paginated list of books with their titles, authors, and cover images (if available)</li>
+<li>Allow users to search for books by title or author name</li>
+<li>Display a single book with its title, author, summary, and user ratings and reviews</li>
+<li>Allow users to log into the application</li>
+<li>Allow authenticated users to add new books to the Bibliotech catalog, save their favorite books to a personal library, and leave reviews on books</li>
+<li>Add new reviews and ratings in real-time to a book’s review list</li>
+<li>Allow authenticated users to update or delete their existing review for a book</li>
+</ul>
+<p>Let’s take a look at the index page of the React application again:</p>
+<p><img src="../../images/screenshots/react-app-book-list.png" alt="Book list rendered on the index page" /><br />
+</p>
+<p>It seems as though our existing <code>books</code> query will work well for this page, but we will need to add fields for the cover image and summary. Sometimes a book’s cover image or summary may not be available, so these fields should be nullable. We’ll also need some way to allow authenticated users to add books to Bibliotech, but we’ll cover that topic in Chapter 3 when we learn about mutations.</p>
+<p>Note that the user library page and the book search results page will have a similar grid-based book layout as the index page. Conceivably, we could reuse the <code>books</code> query to populate the data for the search results page by adding an argument to it for a search string, but with GraphQL it’s typically considered a best practice to add finer-grained, purpose-built queries to the API. For that reason, we will end up adding separate query fields for search later on.</p>
+<p>Next, let’s examine what a single book page looks like for authenticated users:</p>
+<p><img src="../../images/screenshots/react-app-single-book-authenticated-1.png" alt="A single book page for an authenticated user, scrolled to the top" /><br />
+</p>
+<p><img src="../../images/screenshots/react-app-single-book-authenticated-2.png" alt="A single book page for an authenticated user, scrolled to the bottom" /><br />
+</p>
+<p>The existing <code>book</code> query will likely be a good starting point to populate the required data on this page, though we will need to augment it with a field for the book’s reviews so all of the data may be fetched with a single query. Each review will contain a creation date, rating, and review for the book. A review must also be connected to the user who left it so their name can be displayed with it. As with books, long lists of reviews will require pagination. Lastly, we’ll need some way to indicate if a currently authenticated user has already added a particular book to the library and if they have already reviewed the book.</p>
+<p>With these observations in mind, we can now move forward and augment our GraphQL API with additional types and fields that will help support rapid development of our React application in later chapters.</p>
+<h2 id="organize-code-with-an-apollo-data-source">Organize Code with an Apollo Data Source</h2>
+<p>But first, it would be a good idea to pause here and wrangle our resolver code. While there are only a few dozen lines of code in the <code>resolvers.js</code> file right now, it won’t take long for this file to balloon in size as we add data-fetching logic to the body of each resolver function. Further, when we handle this logic on a resolver-by-resolver basis, we miss out on the opportunity to reuse code across resolvers that fetch similar data.</p>
+<p>Before things get out of hand, we can set up an Apollo <code>RESTDataSource</code> with methods that will encapsulate data fetching from the Bibliotech REST API. As a bonus, the <code>RESTDataSource</code> class contains several convenience methods that are designed to facilitate HTTP requests to a REST API. To use this data source, we’ll need to install another package in the <code>server</code> directory:</p>
+<div class="highlight"><pre><span></span>npm install apollo-datasource-rest@0.11.0
+</pre></div>
+
+<div class="boxout">
+<p>In addition to the ready-made <code>RESTDataSource</code>, there are many community data sources available. You can even create custom data sources too. See detailed documentation about Apollo data sources here:</p>
+<p><a href="https://www.apollographql.com/docs/apollo-server/data/data-sources/">https://www.apollographql.com/docs/apollo-server/data/data-sources/</a></p>
+</div>
+<p>Next, create a <code>dataSources</code> directory inside of <code>server/src/graphql</code>, create a <code>JsonServerApi.js</code> file in the new directory, and add the following code to it:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">RESTDataSource</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-datasource-rest&quot;</span><span class="p">;</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// Data source code will go here...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>Above, we use the <code>RESTDataSource</code> by creating a subclass from it called <code>JsonServerApi</code>. The <code>RESTDataSource</code> expects us to define a <code>baseURL</code> property. We could add it as a hardcoded string here, but we may want to provide different versions of the Bibliotech REST API URL depending on what environment our code is running in, so we’ll set it as an environment variable instead. While we’re at it, we can explicitly set the <code>NODE_ENV</code> variable to <code>development</code>.</p>
+<p>Create a <code>.env</code> file in the <code>server</code> directory and add these two variables to it:</p>
+<div class="highlight"><pre><span></span>NODE_ENV=development
+REST_API_BASE_URL=http://localhost:5000
+</pre></div>
+
+<div class="boxout">
+<p>In Chapter 1, we learned that it’s a best practice to turn off introspection for a non-public GraphQL API in production. Apollo Server will automatically disable introspection and GraphQL Playground when the <code>NODE_ENV</code> is set to <code>production</code>. For all other environments, these features will be available by default, but they can be manually configured in the options passed to the <code>ApolloServer</code> constructor.</p>
+</div>
+<p>We already installed the dotenv package in the previous chapter, so to load our environment variables we only need to update the <code>server:graphql</code> script in <code>package.json</code> to preload this package using the <code>-r</code> option:</p>
+<p></p>
+<div class="code-context">
+<p>server/package.json</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="c1">// ...</span>
+  <span class="s2">&quot;scripts&quot;</span><span class="o">:</span> <span class="p">{</span>
+    <span class="s2">&quot;server&quot;</span><span class="o">:</span> <span class="s2">&quot;concurrently -k npm:server:*&quot;</span><span class="p">,</span>
+    <span class="s2">&quot;server:rest&quot;</span><span class="o">:</span> <span class="s2">&quot;json-server -w db.json -p 5000 -r routes.json -q&quot;</span><span class="p">,</span>
+<span class="hll">    <span class="s2">&quot;server:graphql&quot;</span><span class="o">:</span> <span class="s2">&quot;nodemon --ignore db.json -r dotenv/config ./src/index.js&quot;</span>
+</span>  <span class="p">},</span>
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Before moving on, restart the server with <code>npm run server</code>. Next, let’s set the <code>baseURL</code> property in <code>JsonServerApi</code> and make use of the <code>get</code> method from the parent <code>RESTDataSource</code> to fetch author-related data from the REST API:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">RESTDataSource</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-datasource-rest&quot;</span><span class="p">;</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+<span class="hll">  <span class="nx">baseURL</span> <span class="o">=</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">REST_API_BASE_URL</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="hll">  <span class="nx">getAuthorById</span><span class="p">(</span><span class="nx">id</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/authors/</span><span class="si">${</span><span class="nx">id</span><span class="si">}</span><span class="sb">`</span><span class="p">).</span><span class="k">catch</span><span class="p">(</span>
+</span><span class="hll">      <span class="nx">err</span> <span class="p">=&gt;</span> <span class="nx">err</span><span class="p">.</span><span class="nx">message</span> <span class="o">===</span> <span class="s2">&quot;404: Not Found&quot;</span> <span class="o">&amp;&amp;</span> <span class="kc">null</span>
+</span><span class="hll">    <span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">  <span class="nx">async</span> <span class="nx">getAuthorBooks</span><span class="p">(</span><span class="nx">authorId</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">items</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/authors/</span><span class="si">${</span><span class="nx">authorId</span><span class="si">}</span><span class="sb">/books`</span><span class="p">);</span>
+</span><span class="hll">    <span class="k">return</span> <span class="nx">items</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">item</span> <span class="p">=&gt;</span> <span class="nx">item</span><span class="p">.</span><span class="nx">book</span><span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">  <span class="nx">getAuthors</span><span class="p">()</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/authors`</span><span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>The code inside these methods looks a lot like what we wrote in our resolver functions, but the <code>get</code> method handles resolving the JSON response to a JavaScript object, so we can skip calling the <code>json</code> method after fetching the data. Let’s add similar methods to handle book fetching as well:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">RESTDataSource</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-datasource-rest&quot;</span><span class="p">;</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+<span class="hll">
+</span><span class="hll">  <span class="nx">getBookById</span><span class="p">(</span><span class="nx">id</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/books/</span><span class="si">${</span><span class="nx">id</span><span class="si">}</span><span class="sb">`</span><span class="p">).</span><span class="k">catch</span><span class="p">(</span>
+</span><span class="hll">      <span class="nx">err</span> <span class="p">=&gt;</span> <span class="nx">err</span><span class="p">.</span><span class="nx">message</span> <span class="o">===</span> <span class="s2">&quot;404: Not Found&quot;</span> <span class="o">&amp;&amp;</span> <span class="kc">null</span>
+</span><span class="hll">    <span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">  <span class="nx">async</span> <span class="nx">getBookAuthors</span><span class="p">(</span><span class="nx">bookId</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">items</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/books/</span><span class="si">${</span><span class="nx">bookId</span><span class="si">}</span><span class="sb">/authors`</span><span class="p">);</span>
+</span><span class="hll">    <span class="k">return</span> <span class="nx">items</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">item</span> <span class="p">=&gt;</span> <span class="nx">item</span><span class="p">.</span><span class="nx">author</span><span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">  <span class="nx">getBooks</span><span class="p">()</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/books`</span><span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>Now that we have all of the data source methods we need for our existing fields, we need some way to call them from within the applicable resolver functions. To make that happen, we’ll use the <code>dataSources</code> option in the <code>ApolloServer</code> constructor. The <code>dataSources</code> option is a function that returns an object containing the instantiated data source object. We can add as many data sources to this object as we want if there are additional services from which we need to fetch data for our resolvers.</p>
+<p>Update the code in the main <code>index.js</code> file as follows:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">ApolloServer</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="hll"><span class="kr">import</span> <span class="nx">JsonServerApi</span> <span class="nx">from</span> <span class="s2">&quot;./graphql/dataSources/JsonServerApi.js&quot;</span><span class="p">;</span>
+</span><span class="c1">// ...</span>
+
+<span class="kr">const</span> <span class="nx">server</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">ApolloServer</span><span class="p">({</span>
+  <span class="nx">typeDefs</span><span class="p">,</span>
+<span class="hll">  <span class="nx">resolvers</span><span class="p">,</span>
+</span><span class="hll">  <span class="nx">dataSources</span><span class="o">:</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">return</span> <span class="p">{</span>
+</span><span class="hll">      <span class="nx">jsonServerApi</span><span class="o">:</span> <span class="k">new</span> <span class="nx">JsonServerApi</span><span class="p">()</span>
+</span><span class="hll">    <span class="p">};</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="p">});</span>
+
+<span class="c1">// ...</span>
+</pre></div>
+
+<p>By setting the <code>dataSources</code> option, Apollo Server will add our new data source to the context for every request. In other words, the methods from the instantiated <code>JsonServerApi</code> object will be accessible from the <code>context</code> parameter in every resolver function now. Let’s update our resolvers to use those methods:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="nx">Author</span><span class="o">:</span> <span class="p">{</span>
+<span class="hll">    <span class="nx">books</span><span class="p">(</span><span class="nx">author</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getAuthorBooks</span><span class="p">(</span><span class="nx">author</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+</span>    <span class="p">}</span>
+  <span class="p">},</span>
+  <span class="nx">Book</span><span class="o">:</span> <span class="p">{</span>
+<span class="hll">    <span class="nx">authors</span><span class="p">(</span><span class="nx">book</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getBookAuthors</span><span class="p">(</span><span class="nx">book</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+</span>    <span class="p">}</span>
+  <span class="p">},</span>
+  <span class="nx">Query</span><span class="o">:</span> <span class="p">{</span>
+<span class="hll">    <span class="nx">author</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="p">{</span> <span class="nx">id</span> <span class="p">},</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getAuthorById</span><span class="p">(</span><span class="nx">id</span><span class="p">);</span>
+</span>    <span class="p">},</span>
+<span class="hll">    <span class="nx">authors</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getAuthors</span><span class="p">();</span>
+</span>    <span class="p">},</span>
+<span class="hll">    <span class="nx">book</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="p">{</span> <span class="nx">id</span> <span class="p">},</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getBookById</span><span class="p">(</span><span class="nx">id</span><span class="p">);</span>
+</span>    <span class="p">},</span>
+<span class="hll">    <span class="nx">books</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getBooks</span><span class="p">();</span>
+</span>    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>Much tidier! We are even able to remove the <code>node-fetch</code> import and the <code>baseURL</code> constant from the top of <code>resolvers.js</code>. In the code above, note that we now destructure <code>dataSources</code> from the <code>context</code> parameter for each resolver and we have removed the <code>async</code> keyword from all of the existing resolvers because they no longer need to use <code>await</code> anymore. We will make further use of the <code>context</code> parameter in Chapter 6 when we add authentication and authorization to the API.</p>
+<p>Before moving on, try running all of the author and book queries to make sure they still return the same results as before.</p>
+<h2 id="add-a-review-type-definition">Add a <code>Review</code> Type Definition</h2>
+<p>It’s finally time to add some new types to the schema. We need to be able to query a list of related reviews with each book, so we’ll create a new Object type called <code>Review</code> and then add a corresponding <code>reviews</code> field to the <code>Book</code> type. But first, as we noted earlier in the chapter, we still need to add nullable <code>cover</code> and <code>summary</code> fields to the <code>Book</code> type, so let’s do that now:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="sb">  type Book {</span>
+<span class="sb">    id: ID!</span>
+<span class="sb">    authors: [Author]</span>
+<span class="hll"><span class="sb">    cover: String</span>
+</span><span class="hll"><span class="sb">    summary: String</span>
+</span><span class="sb">    title: String!</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>We’ll also need some sample review data to query from the Bibliotech REST API, so we’ll update <code>db.json</code> to serve that data from a new <code>/reviews</code> endpoint:</p>
+<p></p>
+<div class="code-context">
+<p>server/db.json</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="c1">// ...</span>
+  <span class="s2">&quot;bookAuthors&quot;</span><span class="o">:</span> <span class="p">[</span>
+    <span class="c1">// ...</span>
+<span class="hll">  <span class="p">],</span>
+</span><span class="hll">  <span class="s2">&quot;reviews&quot;</span><span class="o">:</span> <span class="p">[</span>
+</span><span class="hll">    <span class="p">{</span>
+</span><span class="hll">      <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+</span><span class="hll">      <span class="s2">&quot;bookId&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+</span><span class="hll">      <span class="s2">&quot;createdAt&quot;</span><span class="o">:</span> <span class="s2">&quot;2021-02-20T15:02:28.308Z&quot;</span><span class="p">,</span>
+</span><span class="hll">      <span class="s2">&quot;rating&quot;</span><span class="o">:</span> <span class="mi">5</span><span class="p">,</span>
+</span><span class="hll">      <span class="s2">&quot;userId&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+</span><span class="hll">      <span class="s2">&quot;text&quot;</span><span class="o">:</span> <span class="s2">&quot;This book is out of this world!&quot;</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">  <span class="p">]</span>
+</span><span class="p">}</span>
+</pre></div>
+
+<p>We don’t have a user with an ID of <code>1</code> yet, but we’ll add that in the next section. Let’s add the <code>Review</code> type next. A rating out of five stars and a date the review was created will be guaranteed for every book, but the written comment will be optional. We will also leave the <code>book</code> field as nullable so that if a book is removed from the Bibliotech database, then a user’s orphaned review for it may still be queried:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="hll"><span class="sb">  type Review {</span>
+</span><span class="hll"><span class="sb">    id: ID!</span>
+</span><span class="hll"><span class="sb">    book: Book</span>
+</span><span class="hll"><span class="sb">    rating: Int!</span>
+</span><span class="hll"><span class="sb">    reviewedOn: String!</span>
+</span><span class="hll"><span class="sb">    text: String</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll">
+</span><span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>Next, we’ll add a new <code>reviews</code> field to <code>Book</code> to connect books to reviews in the opposite direction:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="sb">  type Book {</span>
+<span class="sb">    id: ID!</span>
+<span class="sb">    authors: [Author]</span>
+<span class="sb">    cover: String</span>
+<span class="hll"><span class="sb">    reviews: [Review]</span>
+</span><span class="sb">    summary: String</span>
+<span class="sb">    title: String!</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>We’ll also need to add a field to the <code>Query</code> type to allow single reviews to be queried by ID. This field will be helpful when we add a form in the React application that allows users to update a review (because the existing review data will need to be queried and pre-populated in the form’s fields):</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="sb">  type Query {</span>
+<span class="sb">    author(id: ID!): Author</span>
+<span class="sb">    authors: [Author]</span>
+<span class="sb">    book(id: ID!): Book</span>
+<span class="sb">    books: [Book]</span>
+<span class="hll"><span class="sb">    review(id: ID!): Review</span>
+</span><span class="sb">  }</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>Now we’ll focus on adding the resolvers that query a single review and that connect a book to its reviews, and vice versa. To do that, we’ll add two new methods to the <code>JsonServerApi</code> data source—one that fetches a review by its ID and one that fetches all reviews for a given book ID:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">RESTDataSource</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-datasource-rest&quot;</span><span class="p">;</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+<span class="hll">  
+</span><span class="hll">  <span class="nx">getBookReviews</span><span class="p">(</span><span class="nx">bookId</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/reviews?bookId=</span><span class="si">${</span><span class="nx">bookId</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span>
+</span>  
+  <span class="c1">// ...</span>
+<span class="hll">  
+</span><span class="hll">  <span class="nx">getReviewById</span><span class="p">(</span><span class="nx">id</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/reviews/</span><span class="si">${</span><span class="nx">id</span><span class="si">}</span><span class="sb">`</span><span class="p">).</span><span class="k">catch</span><span class="p">(</span>
+</span><span class="hll">      <span class="nx">err</span> <span class="p">=&gt;</span> <span class="nx">err</span><span class="p">.</span><span class="nx">message</span> <span class="o">===</span> <span class="s2">&quot;404: Not Found&quot;</span> <span class="o">&amp;&amp;</span> <span class="kc">null</span>
+</span><span class="hll">    <span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>Now we can update our <code>Query</code> resolvers to fetch a single review by ID. We’ll also update the <code>Book</code> resolvers to use the new <code>getBookReviews</code> method for the <code>reviews</code> field and then add two resolvers for the <code>Review</code> type. One of those resolvers will map the <code>createdAt</code> time in <code>db.json</code> to the <code>reviewedOn</code> field and the other will use the <code>getBook</code> method to fetch the related book:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  <span class="nx">Book</span><span class="o">:</span> <span class="p">{</span>
+    <span class="nx">authors</span><span class="p">(</span><span class="nx">book</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getBookAuthors</span><span class="p">(</span><span class="nx">book</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+<span class="hll">    <span class="p">},</span>
+</span><span class="hll">    <span class="nx">reviews</span><span class="p">(</span><span class="nx">book</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getBookReviews</span><span class="p">(</span><span class="nx">book</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+</span>    <span class="p">}</span>
+  <span class="p">},</span>
+<span class="hll">  <span class="nx">Review</span><span class="o">:</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">book</span><span class="p">(</span><span class="nx">review</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getBookById</span><span class="p">(</span><span class="nx">review</span><span class="p">.</span><span class="nx">bookId</span><span class="p">);</span>
+</span><span class="hll">    <span class="p">},</span>
+</span><span class="hll">    <span class="nx">reviewedOn</span><span class="p">(</span><span class="nx">review</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">review</span><span class="p">.</span><span class="nx">createdAt</span><span class="p">;</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">  <span class="p">},</span>
+</span>  <span class="nx">Query</span><span class="o">:</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+    <span class="nx">books</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getBooks</span><span class="p">();</span>
+<span class="hll">    <span class="p">},</span>
+</span><span class="hll">    <span class="nx">review</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="p">{</span> <span class="nx">id</span> <span class="p">},</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getReviewById</span><span class="p">(</span><span class="nx">id</span><span class="p">);</span>
+</span>    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>All other properties in a fetched review will map directly to the <code>Review</code> field names, so they will not require additional resolver functions here. Open your GraphQL IDE and try running the following query to confirm that a review list correctly appears under the book:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Query</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">query</span> <span class="p">{</span>
+  <span class="k">book</span><span class="p">(</span>id: <span class="s2">&quot;1&quot;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">id</span>
+    <span class="k">title</span>
+    <span class="k">reviews</span> <span class="p">{</span>
+      <span class="k">id</span>
+      <span class="k">rating</span>
+      <span class="k">reviewedOn</span>
+      <span class="k">text</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>API Response</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;book&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;The Hitchhiker&#39;s Guide to the Galaxy&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;reviews&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+          <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span>
+          <span class="nt">&quot;rating&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+          <span class="nt">&quot;reviewedOn&quot;</span><span class="p">:</span> <span class="s2">&quot;2021-02-20T15:02:28.308Z&quot;</span><span class="p">,</span>
+          <span class="nt">&quot;text&quot;</span><span class="p">:</span> <span class="s2">&quot;This book is out of this world!&quot;</span>
+        <span class="p">}</span>
+      <span class="p">]</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Also, confirm that a single review is queryable by its ID:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Query</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">query</span> <span class="p">{</span>
+  <span class="k">review</span><span class="p">(</span>id: <span class="s2">&quot;1&quot;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">id</span>
+    <span class="k">rating</span>
+    <span class="k">reviewedOn</span>
+    <span class="k">text</span>
+    <span class="k">book</span> <span class="p">{</span>
+      <span class="k">title</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>API Response</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;review&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;rating&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+      <span class="nt">&quot;reviewedOn&quot;</span><span class="p">:</span> <span class="s2">&quot;2021-02-20T15:02:28.308Z&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;text&quot;</span><span class="p">:</span> <span class="s2">&quot;This book is out of this world!&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;book&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;The Hitchhiker&#39;s Guide to the Galaxy&quot;</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="add-a-user-type-definition">Add a <code>User</code> Type Definition</h2>
+<p>Now we’ll work through similar steps to add a <code>User</code> type to the schema. Users will be connected to the reviews they write and to the books they add to their library as favorites. We’ll begin by adding sample user data to the REST API at a basic <code>/users</code> endpoint and a <code>/userBooks</code> endpoint that will handle the many-to-many relationship between users and books:</p>
+<p></p>
+<div class="code-context">
+<p>server/db.json</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="c1">// ...</span>
+  <span class="s2">&quot;reviews&quot;</span><span class="o">:</span> <span class="p">[</span>
+    <span class="c1">// ...</span>
+<span class="hll">  <span class="p">],</span>
+</span><span class="hll">  <span class="s2">&quot;users&quot;</span><span class="o">:</span> <span class="p">[</span>
+</span><span class="hll">    <span class="p">{</span>
+</span><span class="hll">      <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+</span><span class="hll">      <span class="s2">&quot;email&quot;</span><span class="o">:</span> <span class="s2">&quot;alice@email.com&quot;</span><span class="p">,</span>
+</span><span class="hll">      <span class="s2">&quot;name&quot;</span><span class="o">:</span> <span class="s2">&quot;Alice Liddell&quot;</span><span class="p">,</span>
+</span><span class="hll">      <span class="s2">&quot;username&quot;</span><span class="o">:</span> <span class="s2">&quot;rabbithole84&quot;</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">  <span class="p">],</span>
+</span><span class="hll">  <span class="s2">&quot;userBooks&quot;</span><span class="o">:</span> <span class="p">[</span>
+</span><span class="hll">    <span class="p">{</span>
+</span><span class="hll">      <span class="s2">&quot;id&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+</span><span class="hll">      <span class="s2">&quot;bookId&quot;</span><span class="o">:</span> <span class="mi">1</span><span class="p">,</span>
+</span><span class="hll">      <span class="s2">&quot;createdAt&quot;</span><span class="o">:</span> <span class="s2">&quot;2021-02-20T16:01:17.511Z&quot;</span><span class="p">,</span>
+</span><span class="hll">      <span class="s2">&quot;userId&quot;</span><span class="o">:</span> <span class="mi">1</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">  <span class="p">]</span>
+</span><span class="p">}</span>
+</pre></div>
+
+<p>Note that the <code>createdAt</code> field in a <code>userBooks</code> object will help facilitate sorting these records later on. To make it easier to query the books in a user’s library, we’ll also add a custom route to the REST API in the <code>routes.json</code> file:</p>
+<p></p>
+<div class="code-context">
+<p>server/routes.json</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;/authors/:authorId/books&quot;</span><span class="p">:</span> <span class="s2">&quot;/bookAuthors?authorId=:authorId&amp;_expand=book&quot;</span><span class="p">,</span>
+<span class="hll">  <span class="nt">&quot;/books/:bookId/authors&quot;</span><span class="p">:</span> <span class="s2">&quot;/bookAuthors?bookId=:bookId&amp;_expand=author&quot;</span><span class="p">,</span>
+</span><span class="hll">  <span class="nt">&quot;/users/:userId/books&quot;</span><span class="p">:</span> <span class="s2">&quot;/userBooks?userId=:userId&amp;_expand=book&quot;</span>
+</span><span class="p">}</span>
+</pre></div>
+
+<p>Next, we’ll update the schema by adding a <code>User</code> type, a <code>reviewer</code> field to the <code>Review</code> type that outputs a <code>User</code>, and a field on <code>Query</code> to fetch a single user by username:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="sb">  type Review {</span>
+<span class="sb">    id: ID!</span>
+<span class="sb">    book: Book</span>
+<span class="sb">    rating: Int!</span>
+<span class="sb">    reviewedOn: String!</span>
+<span class="hll"><span class="sb">    reviewer: User!</span>
+</span><span class="sb">    text: String</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  type User {</span>
+</span><span class="hll"><span class="sb">    id: ID!</span>
+</span><span class="hll"><span class="sb">    email: String!</span>
+</span><span class="hll"><span class="sb">    library: [Book]</span>
+</span><span class="hll"><span class="sb">    name: String!</span>
+</span><span class="hll"><span class="sb">    reviews: [Review]</span>
+</span><span class="hll"><span class="sb">    username: String!</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll">
+</span><span class="sb">  type Query {</span>
+<span class="sb">    # ...</span>
+<span class="hll"><span class="sb">    user(username: String!): User</span>
+</span><span class="sb">  }</span>
+
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>It’s a functional requirement for Bibliotech to delete all of a user’s data (including their reviews) if their account is removed, so we make the <code>reviewer</code> field on the <code>Review</code> type non-null given that we can always expect it to be connected to some existing user.</p>
+<p>Now we need to determine how to resolve values for all of the user-related fields we just added to the schema. We’ll start by resolving the appropriate user for the <code>reviewer</code> field on the <code>Review</code> type. We need a way to fetch a user by their unique ID to do this, so we’ll create a new method in our data source first:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">RESTDataSource</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-datasource-rest&quot;</span><span class="p">;</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+<span class="hll">
+</span><span class="hll">  <span class="nx">getUserById</span><span class="p">(</span><span class="nx">id</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/users/</span><span class="si">${</span><span class="nx">id</span><span class="si">}</span><span class="sb">`</span><span class="p">).</span><span class="k">catch</span><span class="p">(</span>
+</span><span class="hll">      <span class="nx">err</span> <span class="p">=&gt;</span> <span class="nx">err</span><span class="p">.</span><span class="nx">message</span> <span class="o">===</span> <span class="s2">&quot;404: Not Found&quot;</span> <span class="o">&amp;&amp;</span> <span class="kc">null</span>
+</span><span class="hll">    <span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>Next, we’ll add a resolver for the <code>reviewer</code> field in <code>resolvers.js</code>:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  <span class="nx">Review</span><span class="o">:</span> <span class="p">{</span>
+    <span class="nx">book</span><span class="p">(</span><span class="nx">review</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getBookById</span><span class="p">(</span><span class="nx">review</span><span class="p">.</span><span class="nx">bookId</span><span class="p">);</span>
+    <span class="p">},</span>
+    <span class="nx">reviewedOn</span><span class="p">(</span><span class="nx">review</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">review</span><span class="p">.</span><span class="nx">createdAt</span><span class="p">;</span>
+<span class="hll">    <span class="p">},</span>
+</span><span class="hll">    <span class="nx">reviewer</span><span class="p">(</span><span class="nx">review</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getUserById</span><span class="p">(</span><span class="nx">review</span><span class="p">.</span><span class="nx">userId</span><span class="p">);</span>
+</span>    <span class="p">}</span>
+  <span class="p">},</span>
+  <span class="c1">// ...</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>Apollo Server will use the default resolver to map the values for the <code>id</code>, <code>email</code>, <code>name</code>, and <code>username</code> properties in a user record in <code>db.json</code> to the <code>User</code> type fields, so we only need to provide resolver functions for the <code>reviews</code> and <code>library</code> fields. To do that, we’ll add two more methods to the <code>JsonServerApi</code> data source:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">RESTDataSource</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-datasource-rest&quot;</span><span class="p">;</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+<span class="hll">  
+</span><span class="hll">  <span class="nx">async</span> <span class="nx">getUserLibrary</span><span class="p">(</span><span class="nx">userId</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">items</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/users/</span><span class="si">${</span><span class="nx">userId</span><span class="si">}</span><span class="sb">/books`</span><span class="p">);</span>
+</span><span class="hll">    <span class="k">return</span> <span class="nx">items</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">item</span> <span class="p">=&gt;</span> <span class="nx">item</span><span class="p">.</span><span class="nx">book</span><span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">  <span class="nx">getUserReviews</span><span class="p">(</span><span class="nx">userId</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/reviews?userId=</span><span class="si">${</span><span class="nx">userId</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>The <code>getUserLibrary</code> method is implemented much like the <code>getAuthorBooks</code> method by fetching all of the user’s books from the custom route we previously defined. Next, we’ll add the resolvers for the <code>User</code> type:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+<span class="hll">  <span class="nx">User</span><span class="o">:</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">library</span><span class="p">(</span><span class="nx">user</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getUserLibrary</span><span class="p">(</span><span class="nx">user</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+</span><span class="hll">    <span class="p">},</span>
+</span><span class="hll">    <span class="nx">reviews</span><span class="p">(</span><span class="nx">user</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getUserReviews</span><span class="p">(</span><span class="nx">user</span><span class="p">.</span><span class="nx">id</span><span class="p">);</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">  <span class="p">},</span>
+</span>  <span class="c1">// ...</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>Lastly, we need to add the resolver for the new <code>user</code> query. To fetch a user by their username from the REST API, we must append a query parameter to the <code>/users</code> endpoint. Let’s add a new <code>getUser</code> method to the <code>JsonServerApi</code> data source to handle this request:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">RESTDataSource</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-datasource-rest&quot;</span><span class="p">;</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+
+<span class="hll">  <span class="nx">async</span> <span class="nx">getUser</span><span class="p">(</span><span class="nx">username</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="p">[</span><span class="nx">user</span><span class="p">]</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/users?username=</span><span class="si">${</span><span class="nx">username</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+</span><span class="hll">    <span class="k">return</span> <span class="nx">user</span><span class="p">;</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">  
+</span>  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>When we apply a filter to the <code>/users</code> endpoint using query parameters, it will return an array of users rather than a single user object, so we must destructure the first item out of the returned array and return that object from the method. Because usernames must be unique, we can be confident that there will only ever be at most one item in this array. As a final step, we can call the <code>getUser</code> method from the new <code>user</code> resolver under the <code>Query</code> type:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  <span class="nx">Query</span><span class="o">:</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+    <span class="nx">review</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="p">{</span> <span class="nx">id</span> <span class="p">},</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getReviewById</span><span class="p">(</span><span class="nx">id</span><span class="p">);</span>
+<span class="hll">    <span class="p">},</span>
+</span><span class="hll">    <span class="nx">user</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="p">{</span> <span class="nx">username</span> <span class="p">},</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getUser</span><span class="p">(</span><span class="nx">username</span><span class="p">);</span>
+</span>    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>We’re ready to run some queries that include user data now. Let’s first run the previous query for a single book with reviews but also include a <code>reviewer</code> field this time:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Query</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">query</span> <span class="p">{</span>
+  <span class="k">book</span><span class="p">(</span>id: <span class="s2">&quot;1&quot;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">id</span>
+    <span class="k">title</span>
+    <span class="k">reviews</span> <span class="p">{</span>
+      <span class="k">rating</span>
+      <span class="k">text</span>
+      <span class="k">reviewer</span> <span class="p">{</span>
+        <span class="k">name</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>API Response</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;book&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;The Hitchhiker&#39;s Guide to the Galaxy&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;reviews&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+          <span class="nt">&quot;rating&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+          <span class="nt">&quot;text&quot;</span><span class="p">:</span> <span class="s2">&quot;This book is out of this world!&quot;</span><span class="p">,</span>
+          <span class="nt">&quot;reviewer&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Alice Liddell&quot;</span>
+          <span class="p">}</span>
+        <span class="p">}</span>
+      <span class="p">]</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Now let’s try a larger query that fetches fields for every Object type we’ve defined in our schema so far. We’ll start by querying a single user by their username and we’ll include all of the books they’ve added to their library with author details, as well as all of the reviews that they have written including information about the book that was reviewed:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Query</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">query</span> <span class="p">{</span>
+  <span class="k">user</span><span class="p">(</span>username: <span class="s2">&quot;rabbithole84&quot;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">id</span>
+    <span class="k">email</span>
+    <span class="k">library</span> <span class="p">{</span>
+      <span class="k">id</span>
+      <span class="k">title</span>
+      <span class="k">authors</span> <span class="p">{</span>
+        <span class="k">name</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="k">name</span>
+    <span class="k">reviews</span> <span class="p">{</span>
+      <span class="k">id</span>
+      <span class="k">book</span> <span class="p">{</span>
+        <span class="k">id</span>
+        <span class="k">title</span>
+      <span class="p">}</span>
+      <span class="k">rating</span>
+      <span class="k">text</span>
+    <span class="p">}</span>
+    <span class="k">username</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>API Response</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;user&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;email&quot;</span><span class="p">:</span> <span class="s2">&quot;alice@email.com&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;library&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+          <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span>
+          <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;The Hitchhiker&#39;s Guide to the Galaxy&quot;</span><span class="p">,</span>
+          <span class="nt">&quot;authors&quot;</span><span class="p">:</span> <span class="p">[</span>
+            <span class="p">{</span>
+              <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Douglas Adams&quot;</span>
+            <span class="p">}</span>
+          <span class="p">]</span>
+        <span class="p">}</span>
+      <span class="p">],</span>
+      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Alice Liddell&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;reviews&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+          <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span>
+          <span class="nt">&quot;book&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span>
+            <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;The Hitchhiker&#39;s Guide to the Galaxy&quot;</span>
+          <span class="p">},</span>
+          <span class="nt">&quot;rating&quot;</span><span class="p">:</span> <span class="mi">5</span><span class="p">,</span>
+          <span class="nt">&quot;text&quot;</span><span class="p">:</span> <span class="s2">&quot;This book is out of this world!&quot;</span>
+        <span class="p">}</span>
+      <span class="p">],</span>
+      <span class="nt">&quot;username&quot;</span><span class="p">:</span> <span class="s2">&quot;rabbithole84&quot;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>With just a few Object types defined in our schema, we can already query data from our API in such a way that expresses the complex relationships between the different nodes in our data graph along with the edges that connect them. The following diagram helps visualize those relationships in a graph format:</p>
+<p><img src="../../images/diagrams/schema-node-and-edges.png" class="center-no-caption" alt="GraphQL schema represented as nodes and edges in a graph" /></p>
+<h2 id="best-practice-use-operation-names-and-variables">Best Practice: Use Operation Names and Variables</h2>
+<p>Before wrapping up this chapter and moving on to mutations, there are some important features of GraphQL operation document syntax we should cover. The first is that we’re not limited to running anonymous operations using the <code>query</code> keyword alone. It’s usually considered a best practice to give your operations a distinct and descriptive name too<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a>. For example:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Query</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">query</span> <span class="k">GetBook</span> <span class="p">{</span>
+  <span class="k">book</span><span class="p">(</span>id: <span class="s2">&quot;1&quot;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">id</span>
+    <span class="k">title</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Uniquely identifying the operations performed by clients is useful because it helps with tracing and debugging GraphQL API requests in your observability tooling. Named operations are also useful inside of the non-sandbox version of Explorer because you will have a better idea of which operations you have run recently by looking at the “Run history” list in the lefthand panel (without operation names, all operations will be listed as <code>(unnamed operation)</code>).</p>
+<p>The second important syntactical feature is query <em>variables</em><a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a>. So far, we have hardcoded argument values when we send a query for an individual author, book, or user. However, we can parameterize a query with variables to make it easier to reuse and avoid dynamically building query strings with interpolated argument values in a real client. We could add a variable for a book ID to the previous <code>GetBook</code> query as follows:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Query</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">query</span> <span class="k">GetBook</span><span class="p">(</span><span class="nv">$id</span><span class="p">:</span> <span class="k">ID</span><span class="p">!)</span> <span class="p">{</span>
+  <span class="k">book</span><span class="p">(</span>id: <span class="nv">$id</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">id</span>
+    <span class="k">title</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>When variables are added to an operation they are added in parentheses before the opening curly bracket, they are denoted with a <code>$</code> character, and they must have a type specified as well. The variable can then be substituted for argument values as needed throughout the operation document.</p>
+<p>To run a query with variables in Explorer, we can use the “Variables” panel below the main editor and write them in JSON format. You can automatically extract all of the variables as JSON in this panel by choosing “Extract Variables” from the main editor menu:</p>
+<p><img src="../../images/screenshots/apollo-explorer-extract-variables.png" alt="Extract query variables in Apollo Studio Explorer" /><br />
+</p>
+<p>With the variables extracted, you can fill in real values and submit your query as you did before:</p>
+<p><img src="../../images/screenshots/apollo-explorer-use-variables.png" alt="Use query variables in Apollo Studio Explorer" /><br />
+</p>
+<h2 id="dryer-operations-with-fragments">DRYer Operations with Fragments</h2>
+<p>A final advanced feature of GraphQL operation syntax that we’ll explore in this chapter is called a <em>fragment</em><a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a>. Fragments allow us to reuse common selections of fields across multiple queries. For example, in our previous complex query for a single user with their library books and their reviews with book details, we repeated both the <code>id</code> and <code>title</code> fields for each connected book. We could have instead defined a fragment above or below the query in the editor like this:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Fragment</p>
+</div>
+<div class="highlight"><pre><span></span><span class="k">fragment</span> <span class="k">BookFields</span> <span class="kt">on</span> <span class="k">Book</span> <span class="p">{</span>
+  <span class="k">id</span>
+  <span class="k">title</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>And then replaced those fields under the <code>library</code> field and <code>book</code> field using the fragment name preceded by the spread operator:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Query</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">query</span> <span class="k">GetUser</span><span class="p">(</span><span class="nv">$username</span><span class="p">:</span> <span class="k">String</span><span class="p">!)</span> <span class="p">{</span>
+  <span class="k">user</span><span class="p">(</span>username: <span class="nv">$username</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">id</span>
+    <span class="k">email</span>
+    <span class="k">library</span> <span class="p">{</span>
+      <span class="o">...</span><span class="k">BookFields</span>
+      <span class="k">authors</span> <span class="p">{</span>
+        <span class="k">name</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="k">name</span>
+    <span class="k">reviews</span> <span class="p">{</span>
+      <span class="k">id</span>
+      <span class="k">book</span> <span class="p">{</span>
+        <span class="o">...</span><span class="k">BookFields</span>
+      <span class="p">}</span>
+      <span class="k">rating</span>
+      <span class="k">text</span>
+    <span class="p">}</span>
+    <span class="k">username</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>Query Variables</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;username&quot;</span><span class="p">:</span> <span class="s2">&quot;rabbithole84&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Later in this book when we work on the React application, we’ll use a fragment much like this one to create a reusable grouping of fields for books.</p>
+<h2 id="summary">Summary</h2>
+<p>In this chapter, we continued to build out the GraphQL API for Bibliotech with an eye for adding types and fields that will support client development, rather than simply mirroring back-end implementation details. We learned how Apollo data sources can help maximize code reuse in resolver functions and we also added two new Object types called <code>Review</code> and <code>User</code> to the schema. We then followed some operation-related best practices by naming our operations, using query variables, and writing fragments of field selections to be reused across queries.</p>
+<p>In the next chapter, we build even more powerful features into our GraphQL API by adding mutation operations that will finally allow us to create, update, and delete data for authors, books, reviews, and users.</p>
+<section class="footnotes" role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1" role="doc-endnote"><p><a href="https://spec.graphql.org/June2018/#sec-Named-Operation-Definitions">https://spec.graphql.org/June2018/#sec-Named-Operation-Definitions</a><a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2" role="doc-endnote"><p><a href="https://spec.graphql.org/June2018/#sec-Language.Variables">https://spec.graphql.org/June2018/#sec-Language.Variables</a><a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3" role="doc-endnote"><p><a href="https://spec.graphql.org/June2018/#sec-Language.Fragments">https://spec.graphql.org/June2018/#sec-Language.Fragments</a><a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+<footer>
+<p class="copyright">Copyright © 2021 <a href="https://8bit.press/">8-Bit Press Inc.</a> All rights reserved.</p>
+</footer>
+</div>
+</div>
+<script>
+(function () {
+  "use strict";
+
+  const chapter = document.getElementById("chapter");
+
+  // Set width of fixed-position chapter navigation based on parent
+  function setChapterNavWidth() {
+    const chapterNav = document.getElementsByClassName("chapter-nav")[0];
+    let { width: chapterWidth } = chapter.getBoundingClientRect();
+    chapterNav.setAttribute(
+      "style",
+      `width: ${chapterWidth >= 960 ? chapterWidth * 0.3 + 36 + "px" : "100%"}`
+    );
+  }
+
+  setChapterNavWidth();
+  window.addEventListener("resize", setChapterNavWidth);
+
+  // Open and close the book navigation in the masthead
+  const openMastheadButton = document.getElementById("masthead-open");
+  const closeMastheadButton = document.getElementById("masthead-close");
+  const masthead = document.getElementById("masthead");
+
+  openMastheadButton.addEventListener("click", function (event) {
+    event.stopPropagation();
+    masthead.style.marginLeft = "0px";
+  });
+
+  closeMastheadButton.addEventListener("click", function () {
+    masthead.style.marginLeft = "-100%";
+  });
+
+  chapter.addEventListener("click", function () {
+    if (masthead.style.marginLeft === "0px") {
+      masthead.style.marginLeft = "-100%";
+    }
+  });
+
+  // Add "Copy" button to code snippets
+  // Reference: https://tomspencer.dev/blog/2018/09/14/adding-click-to-copy-buttons-to-a-hugo-powered-blog/
+  if (!document.queryCommandSupported("copy")) {
+    return;
+  }
+
+  function flashCopyMessage(el, msg) {
+    el.textContent = msg;
+    setTimeout(function () {
+      el.textContent = "Copy";
+    }, 1000);
+  }
+
+  function selectText(node) {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return selection;
+  }
+
+  function addCopyButton(containerEl) {
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "highlight-copy-btn";
+    copyBtn.textContent = "Copy";
+
+    var codeEl = containerEl.firstElementChild;
+    copyBtn.addEventListener("click", function () {
+      try {
+        const selection = selectText(codeEl);
+        document.execCommand("copy");
+        selection.removeAllRanges();
+
+        flashCopyMessage(copyBtn, "Copied!");
+      } catch (e) {
+        console && console.log(e);
+        flashCopyMessage(copyBtn, "Failed :'(");
+      }
+    });
+
+    containerEl.appendChild(copyBtn);
+  }
+
+  // Add copy button to code blocks
+  var highlightBlocks = document.getElementsByClassName("highlight");
+  Array.prototype.forEach.call(highlightBlocks, addCopyButton);
+})();
+</script>
+</body>
+</html>

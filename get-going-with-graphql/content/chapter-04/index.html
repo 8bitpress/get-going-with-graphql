@@ -1,0 +1,1417 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US" xml:lang="en-US">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="../../images/favicon.ico" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Mandi Wise" />
+  <title>Get Going with GraphQL</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <link rel="stylesheet" href="../../css/web.min.css" />
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<div id="masthead">
+<div class="close-button-wrapper">
+<button id="masthead-close" type="button"><span>Close</span></button>
+</div>
+<header id="title-block-header">
+<h1 class="title">Get Going with GraphQL</h1>
+<p class="subtitle">Learn How to Build JavaScript Applications with Apollo Server and Apollo Client</p>
+<p class="author">Mandi Wise</p>
+</header>
+<nav class="book-nav">
+<ol class="front-matter-content">
+<li><a href="../preface/index.html">Preface</a></li>
+</ol>
+<ol class="main-matter-content">
+<li><a href="../chapter-01/index.html">Up and Running with GraphQL and Apollo Server</a></li>
+<li><a href="../chapter-02/index.html">More on Queries</a></li>
+<li><a href="../chapter-03/index.html">Mutating Data</a></li>
+<li><a href="../chapter-04/index.html">Pagination and Search Queries</a></li>
+<li><a href="../chapter-05/index.html">Documentation, Custom Scalars, and Custom Directives</a></li>
+<li><a href="../chapter-06/index.html">Authentication and Authorization</a></li>
+<li><a href="../chapter-07/index.html">React App Set-up</a></li>
+<li><a href="../chapter-08/index.html">Apollo Client with User Authentication</a></li>
+<li><a href="../chapter-09/index.html">Pagination, Mutations, and the Apollo Client Cache</a></li>
+<li><a href="../chapter-10/index.html">Real-time Updates with Subscriptions</a></li>
+</ol>
+<ol class="back-matter-content">
+<li><a href="../appendix-a/index.html">Appendix A</a></li>
+<li><a href="../about-the-author/index.html">About the Author</a></li>
+<li><a href="../changelog/index.html">Changelog</a></li>
+</ol>
+<img src="../../images/8bp-logo-white.svg" class="logo" alt="8-Bit Press Inc. logo" />
+</nav>
+</div>
+<div id="chapter">
+<div class="chapter-nav">
+<nav id="TOC" role="doc-toc">
+<button id="masthead-open" type="button"><span>Book Navigation</span></button>
+<h2 id="toc-title">Contents</h2>
+<ul>
+<li><a href="#pagination-and-search-queries">Chapter 4: Pagination and Search Queries</a>
+<ul>
+<li><a href="#book-genres-as-an-enum">Book Genres as an Enum</a></li>
+<li><a href="#pagination-options-for-graphql-apis">Pagination Options for GraphQL APIs</a></li>
+<li><a href="#add-pagination-for-authors-books-reviews-and-users">Add Pagination for Authors, Books, Reviews, and Users</a></li>
+<li><a href="#interfaces-and-unions-what-are-they-good-for">Interfaces and Unions: What Are They Good For?</a></li>
+<li><a href="#add-a-query-to-search-for-people-by-name">Add a Query to Search for People by Name</a></li>
+<li><a href="#add-a-query-to-search-books-by-author-or-title">Add a Query to Search Books by Author or Title</a></li>
+<li><a href="#summary">Summary</a></li>
+</ul></li>
+</ul>
+</nav>
+</div>
+<div class="content">
+<h1 id="pagination-and-search-queries">Chapter 4: Pagination and Search Queries</h1>
+<div class="boxout">
+<p>In this chapter, we will:</p>
+<ul>
+<li>Use an Enum type to categorize books by genre</li>
+<li>Explore different pagination options for GraphQL APIs</li>
+<li>Add pagination to several existing fields in the schema</li>
+<li>Use Interface and Union types for search queries that output multiple Object types</li>
+</ul>
+</div>
+<h2 id="book-genres-as-an-enum">Book Genres as an Enum</h2>
+<p>So far we’ve captured some essential metadata about books including their titles, authors, summaries, and cover image URLs, but it would be useful if we could categorize books by their genre too. To do that, we can add a <code>genre</code> field to the <code>Book</code> type and also include a <code>genre</code> field in the <code>CreateBookInput</code>. At first glance, it seems logical that the output type for the <code>genre</code> field would be a <code>String</code> Scalar corresponding to the genre name. However, Bibliotech has a small number of genres that may be applied to books, so we would also need some kind of runtime validation to ensure this requirement is enforced.</p>
+<p>Luckily, the fourth named type that we will explore will allow us to do exactly that without manually adding runtime validation on the genre string when a new book is created. An <em>Enumeration</em> type, or <em>Enum</em> type for short, is like a Scalar type in a GraphQL schema but with the exception that it is limited to a finite set of defined values.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a></p>
+<p>To define a <code>Genre</code> Enum type, we use the <code>enum</code> keyword and list the allowed values. As a common convention, the values are defined in all caps:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="hll"><span class="sb">  enum Genre {</span>
+</span><span class="hll"><span class="sb">    ADVENTURE</span>
+</span><span class="hll"><span class="sb">    CHILDREN</span>
+</span><span class="hll"><span class="sb">    CLASSICS</span>
+</span><span class="hll"><span class="sb">    COMIC_GRAPHIC_NOVEL</span>
+</span><span class="hll"><span class="sb">    DETECTIVE_MYSTERY</span>
+</span><span class="hll"><span class="sb">    DYSTOPIA</span>
+</span><span class="hll"><span class="sb">    FANTASY</span>
+</span><span class="hll"><span class="sb">    HORROR</span>
+</span><span class="hll"><span class="sb">    HUMOR</span>
+</span><span class="hll"><span class="sb">    NON_FICTION</span>
+</span><span class="hll"><span class="sb">    SCIENCE_FICTION</span>
+</span><span class="hll"><span class="sb">    ROMANCE</span>
+</span><span class="hll"><span class="sb">    THRILLER</span>
+</span><span class="hll"><span class="sb">    WESTERN</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll">
+</span><span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>We can now use the <code>Genre</code> type in the schema as we would an Object or Scalar type. Let’s put it to use by adding a <code>genre</code> field to the <code>CreateBookInput</code> and <code>Book</code> types:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="sb">  input CreateBookInput {</span>
+<span class="sb">    authorIds: [ID]</span>
+<span class="sb">    cover: String</span>
+<span class="hll"><span class="sb">    genre: Genre</span>
+</span><span class="sb">    title: String!</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+
+<span class="sb">  type Book {</span>
+<span class="sb">    id: ID!</span>
+<span class="sb">    authors: [Author]</span>
+<span class="sb">    cover: String</span>
+<span class="hll"><span class="sb">    genre: Genre</span>
+</span><span class="sb">    reviews: [Review]</span>
+<span class="sb">    summary: String</span>
+<span class="sb">    title: String!</span>
+<span class="sb">  }</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>We’ll also need to update the <code>createBook</code> method in the <code>JsonServerApi</code> data source to handle the genre value and save it to <code>db.json</code>:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  
+<span class="hll">  <span class="nx">async</span> <span class="nx">createBook</span><span class="p">({</span> <span class="nx">authorIds</span><span class="p">,</span> <span class="nx">cover</span><span class="p">,</span> <span class="nx">genre</span><span class="p">,</span> <span class="nx">summary</span><span class="p">,</span> <span class="nx">title</span> <span class="p">})</span> <span class="p">{</span>
+</span>    <span class="kr">const</span> <span class="nx">book</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">post</span><span class="p">(</span><span class="s2">&quot;/books&quot;</span><span class="p">,</span> <span class="p">{</span>
+      <span class="p">...(</span><span class="nx">cover</span> <span class="o">&amp;&amp;</span> <span class="p">{</span> <span class="nx">cover</span> <span class="p">}),</span>
+<span class="hll">      <span class="p">...(</span><span class="nx">genre</span> <span class="o">&amp;&amp;</span> <span class="p">{</span> <span class="nx">genre</span> <span class="p">}),</span>
+</span>      <span class="p">...(</span><span class="nx">summary</span> <span class="o">&amp;&amp;</span> <span class="p">{</span> <span class="nx">summary</span> <span class="p">}),</span>
+      <span class="nx">title</span>
+    <span class="p">});</span>
+
+    <span class="c1">// ...</span>
+    <span class="k">return</span> <span class="nx">book</span><span class="p">;</span>
+  <span class="p">}</span>
+  
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>Try creating a new book now to confirm that the genre is added to the book:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Mutation</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">mutation</span> <span class="k">CreateBookMutation</span><span class="p">(</span><span class="nv">$input</span><span class="p">:</span> <span class="k">CreateBookInput</span><span class="p">!)</span> <span class="p">{</span>
+  <span class="k">createBook</span><span class="p">(</span>input: <span class="nv">$input</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">id</span>
+    <span class="k">authors</span> <span class="p">{</span>
+      <span class="k">name</span>
+    <span class="p">}</span>
+    <span class="k">cover</span>
+    <span class="k">genre</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>Mutation Variables</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;input&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;authorIds&quot;</span><span class="p">:</span> <span class="p">[</span><span class="s2">&quot;1&quot;</span><span class="p">],</span>
+    <span class="nt">&quot;cover&quot;</span><span class="p">:</span> <span class="s2">&quot;http://covers.openlibrary.org/b/isbn/9781529034530-L.jpg&quot;</span><span class="p">,</span>
+    <span class="nt">&quot;genre&quot;</span><span class="p">:</span> <span class="s2">&quot;SCIENCE_FICTION&quot;</span><span class="p">,</span>
+    <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;The Restaurant at the End of the Universe&quot;</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>API Response</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;createBook&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;3&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;authors&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+          <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Douglas Adams&quot;</span>
+        <span class="p">}</span>
+      <span class="p">],</span>
+      <span class="nt">&quot;cover&quot;</span><span class="p">:</span> <span class="s2">&quot;http://covers.openlibrary.org/b/isbn/9781529034530-L.jpg&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;genre&quot;</span><span class="p">:</span> <span class="s2">&quot;SCIENCE_FICTION&quot;</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="pagination-options-for-graphql-apis">Pagination Options for GraphQL APIs</h2>
+<p>Now that we’ve completed our Enum type warm-up round, we’ll create some additional options to help sort data returned from certain list fields. Simultaneously, we’ll add additional arguments to support paginating those fields where potentially long lists of data may be returned. But before we do that, we should explore what kinds of pagination options are commonly used with GraphQL APIs.</p>
+<h3 id="offset-based">Offset-Based</h3>
+<p>Historically, offset-based pagination has been a popular choice for paginating results from a database. With offset-based pagination, a client provides information about the number of results it wants to receive per page (called the <em>limit</em>) and how many results to skip before retrieving the limited number of items (called the <em>offset</em>). The server uses these criteria to query the database for that specific set of results (setting a default limit and offset, if necessary).</p>
+<p>To visualize how offset-based pagination works, imagine you have a dataset with five items in it and you want to retrieve the second page of those items sorted in descending order with a limit of two items per page:</p>
+<p><img src="../../images/diagrams/offset-pagination.png" class="center-no-caption" alt="Diagram of basic offset-based pagination" /></p>
+<p>Offset-based pagination is useful when you need to know the total number of pages available. It can also easily support <em>bi-directional</em> pagination. Bi-directional pagination allows you to jump back and forth between pages or to navigate to a specific page within the results. This kind of navigation is often used on blogs and news sites.</p>
+<p>However, there can be performance downsides to this approach if the queried database has a lot of records in it. Further, if new records are added to the database at a high frequency, then the page <em>window</em> may become mismatched with real-time reality, resulting in duplicate or missed records in the pages of results. To illustrate this potential pitfall, imagine retrieving the first page of results from our dataset. While you’re browsing those results, a new sixth item is added before requesting the second page. Suddenly, the paging window shifts back one position, and the fourth item will now confusingly appear at the end of the first page and the start of the second page:</p>
+<p><img src="../../images/diagrams/offset-pagination-add-new.png" class="center-no-caption" alt="Diagram of page window confusion with offset-based pagination" /></p>
+<h3 id="cursor-based">Cursor-Based</h3>
+<p>Cursor-based pagination uses (surprise!) a <em>cursor</em> to progress through results in a dataset. A cursor is a pointer to a specific result in a dataset and can be anything that makes sense to the back-end application as long as it’s a unique, sequential value. As a client navigates through subsequent pages, the server returns results after the item marked by the cursor value.</p>
+<p>Cursor-based pagination on our five-item dataset (once again in descending order with two items per page) can be visualized as follows:</p>
+<p><img src="../../images/diagrams/cursor-pagination.png" class="center-no-caption" alt="Diagram of cursor-based pagination" /></p>
+<p>The nature of the cursor itself is inconsequential to the client—the client just needs to send this value back to the server on subsequent requests so the server knows from which point it should retrieve more results.</p>
+<p>Cursor-based pagination is well-suited to datasets updated at high velocities because it helps address the issue of page window inaccuracies that can happen with offset-based pagination. If a sixth item is added to our dataset after retrieving the first page, then there will be no confusion about where to start the second page when using a cursor:</p>
+<p><img src="../../images/diagrams/cursor-pagination-add-new.png" class="center-no-caption" alt="Diagram of cursor-based pagination correctly handling the next page when new items are added" /></p>
+<p>This style of pagination does have a trade-off though. A cursor-based approach has the downside of not providing any way to jump to a specific page number or calculate the total number of pages reliably. However, if you’re building an app that will be updated rapidly and with infinite scrolling implemented in the user interface to browse content, then the lack of numbered pages and total page counts likely won’t be deal-breakers.</p>
+<h3 id="relay-style">Relay-Style</h3>
+<p>If you’ve previously researched pagination options for GraphQL APIs, you have likely encountered the pagination style used by <a href="https://relay.dev/">Relay</a>. Relay-style pagination is an opinionated flavor of cursor-based pagination for GraphQL APIs. Relay itself is a JavaScript framework that can be used as a client to retrieve and cache data from a GraphQL API, just as Apollo Client does. It was created by Facebook and was designed with Facebook-level applications in mind (in other words, applications with lots of data in lists that are read and written at a high velocity).</p>
+<p>Relay’s barriers to entry are a bit higher than Apollo Client, so Relay itself often isn’t the first package developers reach for when getting started with GraphQL. However, Relay offers a useful model for how to handle paginated data in GraphQL APIs in what it calls a <a href="https://facebook.github.io/relay/graphql/connections.htm">cursor connection specification</a>.</p>
+<p>An important thing to keep in mind with Relay-style pagination is that it is <em>uni-directional</em> by design. If you need to implement “Previous Page” and “Next Page” buttons to traverse content in an app, then Relay-style pagination probably won’t work well for you (although a quick Google search will reveal some proposed workarounds for supporting bi-directional paging with Relay). However, if your user interface requires infinite scrolling to load additional pages of results, then this approach will be a good fit for you.</p>
+<p>As we will see, Relay is very opinionated about how pagination requests are made via query arguments, how paginated types are structured, and also how the paginated query outputs data. A deep dive into Relay pagination internals is outside the scope of this book, but you can learn how to implement Relay-style pagination from scratch with MongoDB in <a href="https://8bit.press/book/advanced-graphql">Advanced GraphQL with Apollo &amp; React</a>.</p>
+<h3 id="so-which-do-we-choose">So Which Do We Choose?</h3>
+<p>Before we choose a style of pagination and begin applying pagination arguments to a field, we have a very important question to answer first: <em>does this field need to paginated in the first place?</em> For fields that will only ever return short lists of data, we can typically skip pagination and save client developers the hassle of wrangling pagination-related arguments for these fields.</p>
+<p>Another important consideration when choosing how to paginate a field is to make sure that the style of pagination is appropriate for client use cases while also still technically feasible in regards to how the data is stored and may be retrieved from its database. Given that JSON Server has better support for offset-based pagination, we will keep things simple and choose this approach for paginating fields in this GraphQL API.</p>
+<div class="boxout">
+<p><strong>Pagination Pro Tip:</strong></p>
+<p>It’s not necessary to select a single style of pagination to use throughout an entire API—the pagination style should be driven by product requirements where possible. However, for the sake of the client developers’ sanity, do ensure that pagination arguments are named and applied as consistently as possible across fields.</p>
+</div>
+<h2 id="add-pagination-for-authors-books-reviews-and-users">Add Pagination for Authors, Books, Reviews, and Users</h2>
+<p>In our API’s current state, there are seven fields that return lists of results. We will proceed with adding pagination arguments to the following five fields based on the likelihood of each of these fields potentially returning more data than we would want to deliver in a single response:</p>
+<ul>
+<li>On the <code>Query</code> type: <code>authors</code> and <code>books</code></li>
+<li>On the <code>Book</code> type: <code>reviews</code></li>
+<li>On the <code>User</code> type: <code>reviews</code> and <code>library</code></li>
+</ul>
+<p>That just leaves the <code>Book</code> type’s <code>authors</code> field and the <code>Author</code> type’s <code>books</code> field. We can be reasonably assured that most books will typically have at most a few authors, so we will leave the <code>authors</code> field as a basic list on the <code>Book</code> type. Whether to paginate the <code>books</code> field on the <code>Author</code> type is a less obvious choice—for the time being, we will leave this field as a basic list, but as time goes on, if an increasing number of particularly prolific authors are added to Bibliotech, then this field may need to be evolved to include pagination arguments.</p>
+<p>To begin, we’ll add some pagination-related Enum types to the schema that will allow a client to indicate how it would like the results ordered:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="hll"><span class="sb">  enum AuthorOrderBy {</span>
+</span><span class="hll"><span class="sb">    NAME_ASC</span>
+</span><span class="hll"><span class="sb">    NAME_DESC</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll">
+</span><span class="hll"><span class="sb">  enum BookOrderBy {</span>
+</span><span class="hll"><span class="sb">    TITLE_ASC</span>
+</span><span class="hll"><span class="sb">    TITLE_DESC</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll">
+</span><span class="hll"><span class="sb">  enum LibraryOrderBy {</span>
+</span><span class="hll"><span class="sb">    ADDED_ON_ASC</span>
+</span><span class="hll"><span class="sb">    ADDED_ON_DESC</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll">
+</span><span class="hll"><span class="sb">  enum ReviewOrderBy {</span>
+</span><span class="hll"><span class="sb">    REVIEWED_ON_ASC</span>
+</span><span class="hll"><span class="sb">    REVIEWED_ON_DESC</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll">
+</span><span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>We’ll also add a <code>PageInfo</code> Object type that will be returned with paginated fields so the client knows what page it’s on, whether there are previous and next pages, how many items were retrieved, and what the total count is:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="hll"><span class="sb">  type PageInfo {</span>
+</span><span class="hll"><span class="sb">    hasNextPage: Boolean</span>
+</span><span class="hll"><span class="sb">    hasPrevPage: Boolean</span>
+</span><span class="hll"><span class="sb">    page: Int</span>
+</span><span class="hll"><span class="sb">    perPage: Int</span>
+</span><span class="hll"><span class="sb">    totalCount: Int</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll">
+</span><span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>Because we can only output a single type from a field, we’ll need to wrap each list of paginated results and the <code>PageInfo</code> type in another Object type and return those types from the fields where pagination is used instead:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="hll"><span class="sb">  type Authors {</span>
+</span><span class="hll"><span class="sb">    results: [Author]</span>
+</span><span class="hll"><span class="sb">    pageInfo: PageInfo</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span>
+<span class="sb">  # ...</span>
+
+<span class="hll"><span class="sb">  type Books {</span>
+</span><span class="hll"><span class="sb">    results: [Book]</span>
+</span><span class="hll"><span class="sb">    pageInfo: PageInfo</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll"><span class="sb">  </span>
+</span><span class="sb">  # ...</span>
+
+<span class="hll"><span class="sb">  type Reviews {</span>
+</span><span class="hll"><span class="sb">    results: [Review]</span>
+</span><span class="hll"><span class="sb">    pageInfo: PageInfo</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll">
+</span><span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>Next, we’ll update all of the fields that will be paginated to include arguments to indicate the number of items to fetch per page, the page number to fetch, and the sort order of the items:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="sb">  type Book {</span>
+<span class="sb">    id: ID!</span>
+<span class="sb">    authors: [Author]</span>
+<span class="sb">    cover: String</span>
+<span class="sb">    genre: Genre</span>
+<span class="hll"><span class="sb">    reviews(limit: Int = 20, orderBy: ReviewOrderBy, page: Int): Reviews</span>
+</span><span class="sb">    summary: String</span>
+<span class="sb">    title: String!</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+
+<span class="sb">  type User {</span>
+<span class="sb">    id: ID!</span>
+<span class="sb">    email: String!</span>
+<span class="hll"><span class="sb">    library(limit: Int = 20, orderBy: LibraryOrderBy, page: Int): Books</span>
+</span><span class="sb">    name: String</span>
+<span class="hll"><span class="sb">    reviews(limit: Int = 20, orderBy: ReviewOrderBy, page: Int): Reviews</span>
+</span><span class="sb">    username: String!</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+<span class="sb">  </span>
+<span class="sb">  type Query {</span>
+<span class="sb">    author(id: ID!): Author</span>
+<span class="hll"><span class="sb">    authors(limit: Int = 20, orderBy: AuthorOrderBy, page: Int): Authors</span>
+</span><span class="sb">    book(id: ID!): Book</span>
+<span class="hll"><span class="sb">    books(limit: Int = 20, orderBy: BookOrderBy, page: Int): Books</span>
+</span><span class="sb">    review(id: ID!): Review</span>
+<span class="sb">    user(username: String!): User</span>
+<span class="sb">  }</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>Note in the code above that we have set a <em>default argument</em> for the <code>limit</code> argument of 20 results for each of the paginated fields. Default arguments are a handy way to communicate to API consumers if any behavior will take effect by default when no value is supplied for a nullable argument.</p>
+<p>Now it’s time to do some work in the <code>JsonServerApi</code> data source to support paginated results for these new and improved fields. We’ve already seen examples of how a query parameter can be used to filter results from the REST API, such as in the <code>getUser</code> method where we make a request to <code>/users?username=${username}</code> to get the user that matches a specific username. We can also use query parameters to assist with paginating and sorting requests from the REST API. For example, to fetch the second page of authors where 20 authors are listed per page, we would add the following query parameters:</p>
+<div class="highlight"><pre><span></span>/authors?_page=2&amp;_limit=20
+</pre></div>
+
+<p>Similarly, to fetch authors in ascending order by name, we could use this query parameter:</p>
+<div class="highlight"><pre><span></span>/authors?_sort=name&amp;_order=asc
+</pre></div>
+
+<p>Note that while JSON Server does have some notion of an offset query parameter (called <code>_start</code>), for the sake of convenience we will use the built-in <code>page</code> parameter instead so we don’t have to manually calculate the starting point for each page. To parse the incoming field arguments into well-formatted query parameters, we’re going to create a new method called <code>parseParams</code> in the <code>JsonServerApi</code> data source:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  
+<span class="hll">  <span class="nx">parseParams</span><span class="p">({</span> <span class="nx">limit</span><span class="p">,</span> <span class="nx">orderBy</span><span class="p">,</span> <span class="nx">page</span><span class="p">,</span> <span class="p">...</span><span class="nx">rest</span> <span class="p">})</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">if</span> <span class="p">(</span><span class="nx">limit</span> <span class="o">&amp;&amp;</span> <span class="nx">limit</span> <span class="o">&gt;</span> <span class="mi">100</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">throw</span> <span class="k">new</span> <span class="nx">UserInputError</span><span class="p">(</span><span class="s2">&quot;Maximum of 100 results per page&quot;</span><span class="p">);</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">    
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">paginationParams</span> <span class="o">=</span> <span class="p">[];</span>
+</span><span class="hll">    <span class="nx">paginationParams</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="sb">`_limit=</span><span class="si">${</span><span class="nx">limit</span><span class="si">}</span><span class="sb">`</span><span class="p">,</span> <span class="sb">`_page=</span><span class="si">${</span><span class="nx">page</span> <span class="o">||</span> <span class="s2">&quot;1&quot;</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+</span><span class="hll">    
+</span><span class="hll">    <span class="c1">// Parse the `orderBy` argument into a `_sort` argument</span>
+</span><span class="hll">    <span class="c1">// Handle other parameters collected in `rest`</span>
+</span><span class="hll">    <span class="c1">// Return the full-assembled query string</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">  
+</span>  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>It’s a good idea to set an upper limit on the number of results a client can fetch from a paginated field to prevent potential abuse of the API, so here we set a maximum of 100 results per request and throw an error if that limit is exceeded. If the requested number of items is fewer than 101, we create segments for the parts of the query string the will specify the <code>_limit</code> and <code>_page</code> parameters.</p>
+<p>Assembling the string for the <code>_sort</code> parameter will be a bit more challenging. Recall that the Enum values we created are formatted in all caps with underscores used for whitespace:</p>
+<div class="highlight"><pre><span></span>NAME_ASC
+</pre></div>
+
+<p>But the query parameter must be formatted as follows:</p>
+<div class="highlight"><pre><span></span>_sort=name&amp;_order=asc
+</pre></div>
+
+<p>Converting the <code>NAME_ASC</code> string to lowercase and splitting it at the underscore would work for this Enum value, but what about the <code>ADDED_ON_ASC</code> value from the <code>LibraryOrderBy</code> type (which corresponds to the <code>createdAt</code> field for a <code>userBooks</code> item)? Luckily, Apollo Server provides a solution that will help us avoid writing a lot of imperative code here. Typically, we expect to handle an Enum type’s value as they are defined in the schema, but occasionally, we need a way to map the values that are defined in a schema to different <em>internal values</em> for use inside an application. While the values of the Enum type will be maintained in the public-facing API, the internal values will be available inside of any resolvers functions that accept the Enum as an argument.<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a></p>
+<p>To use this feature, we’ll need to add maps of the Enum type’s values to the internal values in the resolvers that we pass to Apollo Server:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+<span class="hll">  <span class="nx">AuthorOrderBy</span><span class="o">:</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">NAME_ASC</span><span class="o">:</span> <span class="s2">&quot;name_asc&quot;</span><span class="p">,</span>
+</span><span class="hll">    <span class="nx">NAME_DESC</span><span class="o">:</span> <span class="s2">&quot;name_desc&quot;</span>
+</span><span class="hll">  <span class="p">},</span>
+</span><span class="hll">  <span class="nx">BookOrderBy</span><span class="o">:</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">TITLE_ASC</span><span class="o">:</span> <span class="s2">&quot;title_asc&quot;</span><span class="p">,</span>
+</span><span class="hll">    <span class="nx">TITLE_DESC</span><span class="o">:</span> <span class="s2">&quot;title_desc&quot;</span>
+</span><span class="hll">  <span class="p">},</span>
+</span><span class="hll">  <span class="nx">LibraryOrderBy</span><span class="o">:</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">ADDED_ON_ASC</span><span class="o">:</span> <span class="s2">&quot;createdAt_asc&quot;</span><span class="p">,</span>
+</span><span class="hll">    <span class="nx">ADDED_ON_DESC</span><span class="o">:</span> <span class="s2">&quot;createdAt_desc&quot;</span>
+</span><span class="hll">  <span class="p">},</span>
+</span><span class="hll">  <span class="nx">ReviewOrderBy</span><span class="o">:</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">REVIEWED_ON_ASC</span><span class="o">:</span> <span class="s2">&quot;createdAt_asc&quot;</span><span class="p">,</span>
+</span><span class="hll">    <span class="nx">REVIEWED_ON_DESC</span><span class="o">:</span> <span class="s2">&quot;createdAt_desc&quot;</span>
+</span><span class="hll">  <span class="p">},</span>
+</span>  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<div class="boxout">
+<p>When we set the default value for the <code>limit</code> argument previously, you may have wondered why we didn’t do the same for the <code>orderBy</code> arguments. Ideally, we would have, but there is an issue with v4.x of the GraphQL Tools package (an Apollo Server dependency) that prevents Enum type values from being mapped to their internal values when passed as default arguments.</p>
+<p>You can view the following GitHub issue for more details:</p>
+<p><a href="https://github.com/ardatan/graphql-tools/issues/715">https://github.com/ardatan/graphql-tools/issues/715</a></p>
+</div>
+<p>With this code in place, any time we reference an argument in a resolver function that uses one of these Enum values, the internal value will be conveniently available to use instead. Now we can parse the <code>_sort</code> and <code>_order</code> parameters in the <code>parseParams</code> method:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  
+  <span class="nx">parseParams</span><span class="p">({</span> <span class="nx">limit</span><span class="p">,</span> <span class="nx">orderBy</span><span class="p">,</span> <span class="nx">page</span><span class="p">,</span> <span class="p">...</span><span class="nx">rest</span> <span class="p">})</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+    
+<span class="hll">    <span class="kr">const</span> <span class="p">[</span><span class="nx">sort</span><span class="p">,</span> <span class="nx">order</span><span class="p">]</span> <span class="o">=</span> <span class="nx">orderBy</span> <span class="o">?</span> <span class="nx">orderBy</span><span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span> <span class="o">:</span> <span class="p">[];</span>
+</span>    <span class="c1">// Handle other parameters collected in `rest`</span>
+    <span class="c1">// Return the full-assembled query string</span>
+  <span class="p">}</span>
+  
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>Lastly, we’ll handle any other query parameters that were passed into <code>parseParams</code>, join them using the <code>&amp;</code> character, and return the resulting string:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  
+  <span class="nx">parseParams</span><span class="p">({</span> <span class="nx">limit</span><span class="p">,</span> <span class="nx">orderBy</span><span class="p">,</span> <span class="nx">page</span><span class="p">,</span> <span class="p">...</span><span class="nx">rest</span> <span class="p">})</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+    
+    <span class="kr">const</span> <span class="p">[</span><span class="nx">sort</span><span class="p">,</span> <span class="nx">order</span><span class="p">]</span> <span class="o">=</span> <span class="nx">orderBy</span> <span class="o">?</span> <span class="nx">orderBy</span><span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="s2">&quot;_&quot;</span><span class="p">)</span> <span class="o">:</span> <span class="p">[];</span>
+<span class="hll">    <span class="kr">const</span> <span class="nx">otherParams</span> <span class="o">=</span> <span class="nb">Object</span><span class="p">.</span><span class="nx">keys</span><span class="p">(</span><span class="nx">rest</span><span class="p">).</span><span class="nx">map</span><span class="p">(</span><span class="nx">key</span> <span class="p">=&gt;</span> 
+</span><span class="hll">      <span class="sb">`</span><span class="si">${</span><span class="nx">key</span><span class="si">}</span><span class="sb">=</span><span class="si">${</span><span class="nx">rest</span><span class="p">[</span><span class="nx">key</span><span class="p">]</span><span class="si">}</span><span class="sb">`</span>
+</span><span class="hll">    <span class="p">);</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">queryString</span> <span class="o">=</span> <span class="p">[</span>
+</span><span class="hll">      <span class="p">...(</span><span class="nx">sort</span> <span class="o">?</span> <span class="p">[</span><span class="sb">`_sort=</span><span class="si">${</span><span class="nx">sort</span><span class="si">}</span><span class="sb">`</span><span class="p">]</span> <span class="o">:</span> <span class="p">[]),</span>
+</span><span class="hll">      <span class="p">...(</span><span class="nx">order</span> <span class="o">?</span> <span class="p">[</span><span class="sb">`_order=</span><span class="si">${</span><span class="nx">order</span><span class="si">}</span><span class="sb">`</span><span class="p">]</span> <span class="o">:</span> <span class="p">[]),</span>
+</span><span class="hll">      <span class="p">...</span><span class="nx">paginationParams</span><span class="p">,</span>
+</span><span class="hll">      <span class="p">...</span><span class="nx">otherParams</span>
+</span><span class="hll">    <span class="p">].</span><span class="nx">join</span><span class="p">(</span><span class="s2">&quot;&amp;&quot;</span><span class="p">);</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">return</span> <span class="nx">queryString</span> <span class="o">?</span> <span class="sb">`?</span><span class="si">${</span><span class="nx">queryString</span><span class="si">}</span><span class="sb">`</span> <span class="o">:</span> <span class="s2">&quot;&quot;</span><span class="p">;</span>
+</span>  <span class="p">}</span>
+  
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>Before we update the data source methods for the paginated fields, we’ll also need a helper to parse the pagination-related metadata into an object that can supply the data for the new <code>PageInfo</code> type in the schema. To do that, we’ll need to know what <code>limit</code> and <code>page</code> arguments were used to paginate the results, and we must also use the <code>X-Total-Count</code> header in the REST API response to supply the data for the <code>totalCount</code> field. Additionally, we’ll need to use the <code>Link</code> header from the response to determine if there are previous and next pages. We’ll begin by installing a package in <code>server</code> that helps parse the <code>Link</code> header into an object:</p>
+<div class="highlight"><pre><span></span>npm i parse-link-header@1.0.1
+</pre></div>
+
+<p>Next, we’ll override the <code>didReceiveResponse</code> method of the parent <code>RESTDataSource</code> class to intercept the <code>Link</code> and <code>X-Total-Count</code> headers before parsing the response or returning an error:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="nx">baseURL</span> <span class="o">=</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">REST_API_BASE_URL</span><span class="p">;</span>
+  
+<span class="hll">  <span class="nx">async</span> <span class="nx">didReceiveResponse</span><span class="p">(</span><span class="nx">response</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">if</span> <span class="p">(</span><span class="nx">response</span><span class="p">.</span><span class="nx">ok</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">this</span><span class="p">.</span><span class="nx">linkHeader</span> <span class="o">=</span> <span class="nx">response</span><span class="p">.</span><span class="nx">headers</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s2">&quot;Link&quot;</span><span class="p">);</span>
+</span><span class="hll">      <span class="k">this</span><span class="p">.</span><span class="nx">totalCountHeader</span> <span class="o">=</span> <span class="nx">response</span><span class="p">.</span><span class="nx">headers</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="s2">&quot;X-Total-Count&quot;</span><span class="p">);</span>
+</span><span class="hll">      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">parseBody</span><span class="p">(</span><span class="nx">response</span><span class="p">);</span>
+</span><span class="hll">    <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">throw</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">errorFromResponse</span><span class="p">(</span><span class="nx">response</span><span class="p">);</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">  
+</span>  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>Now we can use the <code>limit</code> and <code>page</code> arguments, the <code>totalCount</code> and <code>linkHeader</code> properties we just set, and the <code>parseLinkHeader</code> function to populate the fields for the <code>PageInfo</code> type:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+<span class="hll"><span class="kr">import</span> <span class="nx">parseLinkHeader</span> <span class="nx">from</span> <span class="s2">&quot;parse-link-header&quot;</span><span class="p">;</span>
+</span>
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  
+<span class="hll">  <span class="nx">parsePageInfo</span><span class="p">({</span> <span class="nx">limit</span><span class="p">,</span> <span class="nx">page</span> <span class="p">})</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">totalCountHeader</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="kd">let</span> <span class="nx">hasNextPage</span><span class="p">,</span> <span class="nx">hasPrevPage</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="hll">      <span class="k">if</span> <span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">linkHeader</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">        <span class="kr">const</span> <span class="p">{</span> <span class="nx">next</span><span class="p">,</span> <span class="nx">prev</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">parseLinkHeader</span><span class="p">(</span><span class="k">this</span><span class="p">.</span><span class="nx">linkHeader</span><span class="p">);</span>
+</span><span class="hll">        <span class="nx">hasNextPage</span> <span class="o">=</span> <span class="o">!!</span><span class="nx">next</span><span class="p">;</span>
+</span><span class="hll">        <span class="nx">hasPrevPage</span> <span class="o">=</span> <span class="o">!!</span><span class="nx">prev</span><span class="p">;</span>
+</span><span class="hll">      <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">      <span class="k">return</span> <span class="p">{</span>
+</span><span class="hll">        <span class="nx">hasNextPage</span><span class="o">:</span> <span class="nx">hasNextPage</span> <span class="o">||</span> <span class="kc">false</span><span class="p">,</span>
+</span><span class="hll">        <span class="nx">hasPrevPage</span><span class="o">:</span> <span class="nx">hasPrevPage</span> <span class="o">||</span> <span class="kc">false</span><span class="p">,</span>
+</span><span class="hll">        <span class="nx">page</span><span class="o">:</span> <span class="nx">page</span> <span class="o">||</span> <span class="mi">1</span><span class="p">,</span>
+</span><span class="hll">        <span class="nx">perPage</span><span class="o">:</span> <span class="nx">limit</span><span class="p">,</span>
+</span><span class="hll">        <span class="nx">totalCount</span><span class="o">:</span> <span class="k">this</span><span class="p">.</span><span class="nx">totalCountHeader</span>
+</span><span class="hll">      <span class="p">};</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">return</span> <span class="kc">null</span><span class="p">;</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">  
+</span>  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>At long last, we can finally update the <code>getAuthors</code>, <code>getBookReviews</code>, <code>getBooks</code>, and <code>getUserLibrary</code> and <code>getUserReviews</code> methods. We’ll start with <code>getAuthors</code>:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  
+<span class="hll">  <span class="nx">async</span> <span class="nx">getAuthors</span><span class="p">({</span> <span class="nx">limit</span><span class="p">,</span> <span class="nx">page</span><span class="p">,</span> <span class="nx">orderBy</span> <span class="o">=</span> <span class="s2">&quot;name_asc&quot;</span> <span class="p">})</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">queryString</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">parseParams</span><span class="p">({</span>
+</span><span class="hll">      <span class="p">...(</span><span class="nx">limit</span> <span class="o">&amp;&amp;</span> <span class="p">{</span> <span class="nx">limit</span> <span class="p">}),</span>
+</span><span class="hll">      <span class="p">...(</span><span class="nx">page</span> <span class="o">&amp;&amp;</span> <span class="p">{</span> <span class="nx">page</span> <span class="p">}),</span>
+</span><span class="hll">      <span class="nx">orderBy</span>
+</span><span class="hll">    <span class="p">});</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">authors</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/authors</span><span class="si">${</span><span class="nx">queryString</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">pageInfo</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">parsePageInfo</span><span class="p">({</span> <span class="nx">limit</span><span class="p">,</span> <span class="nx">page</span> <span class="p">});</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">return</span> <span class="p">{</span> <span class="nx">results</span><span class="o">:</span> <span class="nx">authors</span><span class="p">,</span> <span class="nx">pageInfo</span> <span class="p">};</span>
+</span>  <span class="p">}</span>
+  
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>In the revised code above, we now mark the <code>getAuthors</code> methods as <code>async</code> so we can use the <code>await</code> keyword inside of it. We first construct the string of query parameters using the <code>parseParams</code> method, then fetch the results from the <code>/authors</code> endpoint with the string appended, parse the page metadata with the <code>parsePageInfo</code> method, and finally return an object containing the <code>results</code> and <code>pageInfo</code> properties, which correspond to the fields in the new <code>Authors</code> Object type.</p>
+<p>Now we’ll follow a similar pattern to update the methods for the rest of the paginated fields:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  
+<span class="hll">  <span class="nx">async</span> <span class="nx">getBookReviews</span><span class="p">(</span><span class="nx">bookId</span><span class="p">,</span> <span class="p">{</span> <span class="nx">limit</span><span class="p">,</span> <span class="nx">page</span><span class="p">,</span> <span class="nx">orderBy</span> <span class="o">=</span> <span class="s2">&quot;createdAt_desc&quot;</span> <span class="p">})</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">queryString</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">parseParams</span><span class="p">({</span>
+</span><span class="hll">      <span class="p">...(</span><span class="nx">limit</span> <span class="o">&amp;&amp;</span> <span class="p">{</span> <span class="nx">limit</span> <span class="p">}),</span>
+</span><span class="hll">      <span class="p">...(</span><span class="nx">page</span> <span class="o">&amp;&amp;</span> <span class="p">{</span> <span class="nx">page</span> <span class="p">}),</span>
+</span><span class="hll">      <span class="nx">bookId</span><span class="p">,</span>
+</span><span class="hll">      <span class="nx">orderBy</span>
+</span><span class="hll">    <span class="p">});</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">reviews</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/reviews</span><span class="si">${</span><span class="nx">queryString</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">pageInfo</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">parsePageInfo</span><span class="p">({</span> <span class="nx">limit</span><span class="p">,</span> <span class="nx">page</span> <span class="p">});</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">return</span> <span class="p">{</span> <span class="nx">results</span><span class="o">:</span> <span class="nx">reviews</span><span class="p">,</span> <span class="nx">pageInfo</span> <span class="p">};</span>
+</span>  <span class="p">}</span>
+  
+<span class="hll">  <span class="nx">async</span> <span class="nx">getBooks</span><span class="p">({</span> <span class="nx">limit</span><span class="p">,</span> <span class="nx">page</span><span class="p">,</span> <span class="nx">orderBy</span> <span class="o">=</span> <span class="s2">&quot;title_asc&quot;</span> <span class="p">})</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">queryString</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">parseParams</span><span class="p">({</span>
+</span><span class="hll">      <span class="p">...(</span><span class="nx">limit</span> <span class="o">&amp;&amp;</span> <span class="p">{</span> <span class="nx">limit</span> <span class="p">}),</span>
+</span><span class="hll">      <span class="p">...(</span><span class="nx">page</span> <span class="o">&amp;&amp;</span> <span class="p">{</span> <span class="nx">page</span> <span class="p">}),</span>
+</span><span class="hll">      <span class="nx">orderBy</span>
+</span><span class="hll">    <span class="p">});</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">books</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/books</span><span class="si">${</span><span class="nx">queryString</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">pageInfo</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">parsePageInfo</span><span class="p">({</span> <span class="nx">limit</span><span class="p">,</span> <span class="nx">page</span> <span class="p">});</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">return</span> <span class="p">{</span> <span class="nx">results</span><span class="o">:</span> <span class="nx">books</span><span class="p">,</span> <span class="nx">pageInfo</span> <span class="p">};</span>
+</span>  <span class="p">}</span>
+  
+  <span class="c1">// ...</span>
+  
+<span class="hll">  <span class="nx">async</span> <span class="nx">getUserLibrary</span><span class="p">(</span><span class="nx">userId</span><span class="p">,</span> <span class="p">{</span> <span class="nx">limit</span><span class="p">,</span> <span class="nx">page</span><span class="p">,</span> <span class="nx">orderBy</span> <span class="o">=</span> <span class="s2">&quot;createdAt_desc&quot;</span> <span class="p">})</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">queryString</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">parseParams</span><span class="p">({</span>
+</span><span class="hll">      <span class="nx">_expand</span><span class="o">:</span> <span class="s2">&quot;book&quot;</span><span class="p">,</span>
+</span><span class="hll">      <span class="p">...(</span><span class="nx">limit</span> <span class="o">&amp;&amp;</span> <span class="p">{</span> <span class="nx">limit</span> <span class="p">}),</span>
+</span><span class="hll">      <span class="p">...(</span><span class="nx">page</span> <span class="o">&amp;&amp;</span> <span class="p">{</span> <span class="nx">page</span> <span class="p">}),</span>
+</span><span class="hll">      <span class="nx">orderBy</span><span class="p">,</span>
+</span><span class="hll">      <span class="nx">userId</span>
+</span><span class="hll">    <span class="p">});</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">items</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/userBooks</span><span class="si">${</span><span class="nx">queryString</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">books</span> <span class="o">=</span> <span class="nx">items</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">item</span> <span class="p">=&gt;</span> <span class="nx">item</span><span class="p">.</span><span class="nx">book</span><span class="p">);</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">pageInfo</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">parsePageInfo</span><span class="p">({</span> <span class="nx">limit</span><span class="p">,</span> <span class="nx">page</span> <span class="p">});</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">return</span> <span class="p">{</span> <span class="nx">results</span><span class="o">:</span> <span class="nx">books</span><span class="p">,</span> <span class="nx">pageInfo</span> <span class="p">};</span>
+</span>  <span class="p">}</span>
+
+<span class="hll">  <span class="nx">async</span> <span class="nx">getUserReviews</span><span class="p">(</span><span class="nx">userId</span><span class="p">,</span> <span class="p">{</span> <span class="nx">limit</span><span class="p">,</span> <span class="nx">page</span><span class="p">,</span> <span class="nx">orderBy</span> <span class="o">=</span> <span class="s2">&quot;createdAt_desc&quot;</span> <span class="p">})</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">queryString</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">parseParams</span><span class="p">({</span>
+</span><span class="hll">      <span class="p">...(</span><span class="nx">limit</span> <span class="o">&amp;&amp;</span> <span class="p">{</span> <span class="nx">limit</span> <span class="p">}),</span>
+</span><span class="hll">      <span class="p">...(</span><span class="nx">page</span> <span class="o">&amp;&amp;</span> <span class="p">{</span> <span class="nx">page</span> <span class="p">}),</span>
+</span><span class="hll">      <span class="nx">orderBy</span><span class="p">,</span>
+</span><span class="hll">      <span class="nx">userId</span>
+</span><span class="hll">    <span class="p">});</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">reviews</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/reviews</span><span class="si">${</span><span class="nx">queryString</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">pageInfo</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">parsePageInfo</span><span class="p">({</span> <span class="nx">limit</span><span class="p">,</span> <span class="nx">page</span> <span class="p">});</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">return</span> <span class="p">{</span> <span class="nx">results</span><span class="o">:</span> <span class="nx">reviews</span><span class="p">,</span> <span class="nx">pageInfo</span> <span class="p">};</span>
+</span>  <span class="p">}</span>
+  
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>Note that we can no longer use the aliased <code>/userBooks</code> route in the <code>getUserLibrary</code> method because aliased routes can’t use query strings in JSON Server. As a result, we have to manually expand the related book records for each item in the response.</p>
+<p>Before testing out the paginated fields, we must update the resolver function for each field to pass through the pagination arguments to the data source method that it calls:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  <span class="nx">Book</span><span class="o">:</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+    <span class="nx">reviews</span><span class="p">(</span><span class="nx">book</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+<span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getBookReviews</span><span class="p">(</span><span class="nx">book</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span> <span class="nx">args</span><span class="p">);</span>
+</span>    <span class="p">}</span>
+  <span class="p">},</span>
+  <span class="c1">// ...</span>
+  <span class="nx">User</span><span class="o">:</span> <span class="p">{</span>
+    <span class="nx">library</span><span class="p">(</span><span class="nx">user</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+<span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getUserLibrary</span><span class="p">(</span><span class="nx">user</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span> <span class="nx">args</span><span class="p">);</span>
+</span>    <span class="p">},</span>
+    <span class="nx">reviews</span><span class="p">(</span><span class="nx">user</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+<span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getUserReviews</span><span class="p">(</span><span class="nx">user</span><span class="p">.</span><span class="nx">id</span><span class="p">,</span> <span class="nx">args</span><span class="p">);</span>
+</span>    <span class="p">}</span>
+  <span class="p">},</span>
+  <span class="nx">Query</span><span class="o">:</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+    <span class="nx">authors</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+<span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getAuthors</span><span class="p">(</span><span class="nx">args</span><span class="p">);</span>
+</span>    <span class="p">},</span>
+    <span class="c1">// ...</span>
+    <span class="nx">books</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+<span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">getBooks</span><span class="p">(</span><span class="nx">args</span><span class="p">);</span>
+</span>    <span class="p">},</span>
+    <span class="c1">// ...</span>
+  <span class="p">},</span>
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>Now let’s try fetching a paginated list of books. If you only have one book stored in <code>db.json</code> right now, then run the <code>createBook</code> mutation a few times with some new book data first so you can ensure the pagination is working as expected:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Query</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">query</span> <span class="k">GetBooks</span><span class="p">(</span><span class="nv">$limit</span><span class="p">:</span> <span class="k">Int</span>, <span class="nv">$orderBy</span><span class="p">:</span> <span class="k">BookOrderBy</span>, <span class="nv">$page</span><span class="p">:</span> <span class="k">Int</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">books</span><span class="p">(</span>limit: <span class="nv">$limit</span>, orderBy: <span class="nv">$orderBy</span>, page: <span class="nv">$page</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">results</span> <span class="p">{</span>
+      <span class="k">title</span>
+    <span class="p">}</span>
+    <span class="k">pageInfo</span> <span class="p">{</span>
+      <span class="k">hasNextPage</span>
+      <span class="k">hasPrevPage</span>
+      <span class="k">page</span>
+      <span class="k">perPage</span>
+      <span class="k">totalCount</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>Query Variables</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;limit&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+  <span class="nt">&quot;orderBy&quot;</span><span class="p">:</span> <span class="s2">&quot;TITLE_DESC&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;page&quot;</span><span class="p">:</span> <span class="mi">1</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>API Response</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;books&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">&quot;results&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+          <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;The Restaurant at the End of the Universe&quot;</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;The Hitchhiker&#39;s Guide to the Galaxy&quot;</span>
+        <span class="p">}</span>
+      <span class="p">],</span>
+      <span class="nt">&quot;pageInfo&quot;</span><span class="p">:</span> <span class="p">{</span>
+        <span class="nt">&quot;hasNextPage&quot;</span><span class="p">:</span> <span class="kc">true</span><span class="p">,</span>
+        <span class="nt">&quot;hasPrevPage&quot;</span><span class="p">:</span> <span class="kc">false</span><span class="p">,</span>
+        <span class="nt">&quot;page&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+        <span class="nt">&quot;perPage&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+        <span class="nt">&quot;totalCount&quot;</span><span class="p">:</span> <span class="mi">3</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>We can even try fetching a paginated list of books with a paginated list of reviews for each book:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Query</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">query</span> <span class="k">GetBooksWithReviews</span><span class="p">(</span>
+  <span class="nv">$booksLimit</span><span class="p">:</span> <span class="k">Int</span>
+  <span class="nv">$booksOrderBy</span><span class="p">:</span> <span class="k">BookOrderBy</span>
+  <span class="nv">$booksPage</span><span class="p">:</span> <span class="k">Int</span>
+  <span class="nv">$reviewsLimit</span><span class="p">:</span> <span class="k">Int</span>
+  <span class="nv">$reviewsOrderBy</span><span class="p">:</span> <span class="k">ReviewOrderBy</span>
+  <span class="nv">$reviewsPage</span><span class="p">:</span> <span class="k">Int</span>
+<span class="p">)</span> <span class="p">{</span>
+  <span class="k">books</span><span class="p">(</span>limit: <span class="nv">$booksLimit</span>, orderBy: <span class="nv">$booksOrderBy</span>, page: <span class="nv">$booksPage</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">results</span> <span class="p">{</span>
+      <span class="k">title</span>
+      <span class="k">reviews</span><span class="p">(</span>
+        limit: <span class="nv">$reviewsLimit</span>
+        orderBy: <span class="nv">$reviewsOrderBy</span>
+        page: <span class="nv">$reviewsPage</span>
+      <span class="p">)</span> <span class="p">{</span>
+        <span class="k">results</span> <span class="p">{</span>
+          <span class="k">reviewedOn</span>
+        <span class="p">}</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>Query Variables</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;booksLimit&quot;</span><span class="p">:</span> <span class="mi">2</span><span class="p">,</span>
+  <span class="nt">&quot;booksOrderBy&quot;</span><span class="p">:</span> <span class="s2">&quot;TITLE_ASC&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;booksPage&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+  <span class="nt">&quot;reviewsLimit&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+  <span class="nt">&quot;reviewsOrderBy&quot;</span><span class="p">:</span> <span class="s2">&quot;REVIEWED_ON_DESC&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;reviewsPage&quot;</span><span class="p">:</span> <span class="mi">1</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>API Response</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;books&quot;</span><span class="p">:</span> <span class="p">{</span>
+      <span class="nt">&quot;results&quot;</span><span class="p">:</span> <span class="p">[</span>
+        <span class="p">{</span>
+          <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;The Dispossessed&quot;</span><span class="p">,</span>
+          <span class="nt">&quot;reviews&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="nt">&quot;results&quot;</span><span class="p">:</span> <span class="p">[]</span>
+          <span class="p">}</span>
+        <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;The Hitchhiker&#39;s Guide to the Galaxy&quot;</span><span class="p">,</span>
+          <span class="nt">&quot;reviews&quot;</span><span class="p">:</span> <span class="p">{</span>
+            <span class="nt">&quot;results&quot;</span><span class="p">:</span> <span class="p">[</span>
+              <span class="p">{</span>
+                <span class="nt">&quot;reviewedOn&quot;</span><span class="p">:</span> <span class="s2">&quot;2021-02-20T15:02:28.308Z&quot;</span>
+              <span class="p">}</span>
+            <span class="p">]</span>
+          <span class="p">}</span>
+        <span class="p">}</span>
+      <span class="p">]</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Before moving on, try rerunning the <code>authors</code> query and the <code>user</code> query with paginated <code>library</code> and <code>review</code> fields to confirm that they work as expected.</p>
+<h2 id="interfaces-and-unions-what-are-they-good-for">Interfaces and Unions: What Are They Good For?</h2>
+<p>Pagination is finally functional and we can now make further use of the <code>parseParams</code> method to power two new search queries for the Bibliotech API. The first query will allow users to search for books by author name or book title. The second query will support searching for people by name, including both authors and users in the results. But we have been limited to setting a single output type for each field so far, so how will we return authors and books from the first query and authors and users from the second?</p>
+<p>There are two ways we can do this with GraphQL. So far we have used Scalar, Object, Input, and Enum types in our schema, but there are still two named types we have yet to explore—one is the <em>Interface</em> type and the other is the <em>Union</em> type. In a GraphQL schema, an Interface type is an abstract type that specifies fields that must be included by any other concrete types that implement it. In other words, it guarantees types include a common set of fields. For example:</p>
+<div class="highlight"><pre><span></span><span class="kt">interface</span> <span class="k">Plant</span> <span class="p">{</span>
+  species: <span class="k">String</span>
+<span class="p">}</span>
+
+<span class="kt">type</span> <span class="k">Flower</span> <span class="kt">implements</span> <span class="k">Plant</span> <span class="p">{</span>
+  species: <span class="k">String</span>
+  petalColor: <span class="p">[</span><span class="k">String</span><span class="p">]</span>
+<span class="p">}</span>
+
+<span class="kt">type</span> <span class="k">Tree</span> <span class="kt">implements</span> <span class="k">Plant</span> <span class="p">{</span>
+  species: <span class="k">String</span>
+  deciduous: <span class="k">Boolean</span>
+<span class="p">}</span>
+
+<span class="kt">type</span> <span class="k">Query</span> <span class="p">{</span>
+  plants: <span class="p">[</span><span class="k">Plant</span><span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>In this example, because the <code>Flower</code> and <code>Tree</code> types implement the <code>Plant</code> Interface, they must have a <code>species</code> field (in addition to whatever type-specific fields they may support). When we run the <code>plants</code> query, we can expect to get back results containing one or both types. This shared behavior of flowers and trees (where both are identifiable as plant species and may be returned by the <code>plants</code> query) is a good indication that an Interface type is warranted here—we want our Interface types to serve a functional purpose in the API and not simply define a contract of shared fields.</p>
+<p>A Union type, on the other hand, is an abstract type like the Interface type but it doesn’t require any common fields between the types. That means we use Union types when we simply need a field to return any number of unrelated Object types. Reworking our plants example to use a Union would look like this:</p>
+<div class="highlight"><pre><span></span><span class="k">union</span> <span class="k">Plant</span> <span class="p">=</span> <span class="k">Flower</span> <span class="p">|</span> <span class="k">Tree</span>
+
+<span class="kt">type</span> <span class="k">Flower</span> <span class="p">{</span>
+  petalColor: <span class="p">[</span><span class="k">String</span><span class="p">]</span>
+<span class="p">}</span>
+
+<span class="kt">type</span> <span class="k">Tree</span> <span class="p">{</span>
+  species: <span class="k">String</span>
+  deciduous: <span class="k">Boolean</span>
+<span class="p">}</span>
+
+<span class="kt">type</span> <span class="k">Query</span> <span class="p">{</span>
+  plants: <span class="p">[</span><span class="k">Plant</span><span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Here, there is no guarantee that <code>Flower</code> and <code>Tree</code> will both contain <code>species</code> field, but as with the Interface type, we can still have a <code>plants</code> query that outputs either Object type. To implement our search queries, we will use a <code>Person</code> Interface type for the query that searches for authors and users (given that they are conceptually similar and also share <code>id</code> and <code>name</code> fields) and we’ll use a Union type for the query that search for books by author name or book title (given that authors and books are two very different kinds of resources).</p>
+<h2 id="add-a-query-to-search-for-people-by-name">Add a Query to Search for People by Name</h2>
+<p>To set up the <code>searchPeople</code> query, we’ll first create an Enum type for ordering the results and the <code>Person</code> Interface containing non-null <code>id</code> and <code>name</code> fields:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="hll"><span class="sb">  enum SearchOrderBy {</span>
+</span><span class="hll"><span class="sb">    RESULT_ASC</span>
+</span><span class="hll"><span class="sb">    RESULT_DESC</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll">
+</span><span class="hll"><span class="sb">  interface Person {</span>
+</span><span class="hll"><span class="sb">    id: ID!</span>
+</span><span class="hll"><span class="sb">    name: String!</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll">
+</span><span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>Next, we’ll update the <code>Author</code> and <code>User</code> Object types to implement <code>Person</code>:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="hll"><span class="sb">  type Author implements Person {</span>
+</span><span class="sb">    # ...</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+
+<span class="hll"><span class="sb">  type User implements Person {</span>
+</span><span class="sb">    # ...</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>Now we’ll add the <code>searchPeople</code> query. We’ll add an <code>exact</code> argument to the field to indicate if we should search for an exact match on the <code>name</code> value or use a full-text search instead:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="sb">  type Query {</span>
+<span class="sb">    # ...</span>
+<span class="hll"><span class="sb">    searchPeople(</span>
+</span><span class="hll"><span class="sb">      exact: Boolean = false</span>
+</span><span class="hll"><span class="sb">      orderBy: SearchOrderBy</span>
+</span><span class="hll"><span class="sb">      query: String!</span>
+</span><span class="hll"><span class="sb">    ): [Person]</span>
+</span><span class="sb">    user(username: String!): User</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<div class="boxout">
+<p>Due to limitations with the mocked REST API, we will not be to paginate search results reliably. We will instead return a maximum of 50 results each of author and user objects that are sorted alphabetically by name to simulate a search query. However, if we were using a backing data store that did support full-text search across different data types, then we would typically add pagination options to a field such as this given its potential to return a long list of matching results. We would also likely return results by relevance if this sorting option is available.</p>
+</div>
+<p>Back in the <code>JsonServerApi</code> data source, we’ll add a <code>searchPeople</code> method to fetch matching authors and users using the <code>name_like</code> query parameter in the request to the REST API and then sort them by name:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  
+<span class="hll">  <span class="nx">async</span> <span class="nx">searchPeople</span><span class="p">({</span> <span class="nx">exact</span><span class="p">,</span> <span class="nx">query</span><span class="p">,</span> <span class="nx">orderBy</span> <span class="o">=</span> <span class="s2">&quot;RESULT_ASC&quot;</span> <span class="p">})</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">queryString</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">parseParams</span><span class="p">({</span>
+</span><span class="hll">      <span class="p">...(</span><span class="nx">exact</span> <span class="o">?</span> <span class="p">{</span> <span class="nx">name</span><span class="o">:</span> <span class="nx">query</span> <span class="p">}</span> <span class="o">:</span> <span class="p">{</span> <span class="nx">q</span><span class="o">:</span> <span class="nx">query</span> <span class="p">}),</span>
+</span><span class="hll">      <span class="nx">limit</span><span class="o">:</span> <span class="mi">50</span>
+</span><span class="hll">    <span class="p">});</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">authors</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/authors</span><span class="si">${</span><span class="nx">queryString</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">users</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/users</span><span class="si">${</span><span class="nx">queryString</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">results</span> <span class="o">=</span> <span class="p">[]</span>
+</span><span class="hll">      <span class="p">.</span><span class="nx">concat</span><span class="p">(</span><span class="nx">authors</span><span class="p">,</span> <span class="nx">users</span><span class="p">)</span>
+</span><span class="hll">      <span class="p">.</span><span class="nx">sort</span><span class="p">((</span><span class="nx">a</span><span class="p">,</span> <span class="nx">b</span><span class="p">)</span> <span class="p">=&gt;</span>
+</span><span class="hll">        <span class="nx">orderBy</span> <span class="o">===</span> <span class="s2">&quot;RESULT_ASC&quot;</span>
+</span><span class="hll">          <span class="o">?</span> <span class="nx">a</span><span class="p">.</span><span class="nx">name</span><span class="p">.</span><span class="nx">localeCompare</span><span class="p">(</span><span class="nx">b</span><span class="p">.</span><span class="nx">name</span><span class="p">)</span>
+</span><span class="hll">          <span class="o">:</span> <span class="nx">b</span><span class="p">.</span><span class="nx">name</span><span class="p">.</span><span class="nx">localeCompare</span><span class="p">(</span><span class="nx">a</span><span class="p">.</span><span class="nx">name</span><span class="p">)</span>
+</span><span class="hll">      <span class="p">);</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">return</span> <span class="nx">results</span><span class="p">;</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">
+</span>  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>Now we’ll use that method in a new resolver for the <code>searchPeople</code> field on the <code>Query</code> type:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  <span class="nx">Query</span><span class="o">:</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+<span class="hll">    <span class="nx">searchPeople</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">searchPeople</span><span class="p">(</span><span class="nx">args</span><span class="p">);</span>
+</span><span class="hll">    <span class="p">},</span>
+</span>    <span class="c1">// ...</span>
+  <span class="p">},</span>
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>While it may seem like we’re done at this point, we still have one more addition to make to the resolvers. When an abstract type is added to the schema, we must also provide a special <code>__resolveType</code> resolver so Apollo Server understands what kind of Object type is being returned from the field. To implement a <code>__resolveType</code> resolver for the <code>Person</code> type, we can use the presence of a <code>username</code> field on the object to identify if it represents a user or an author. We then return the name of the corresponding Object type as a string from the resolver:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+<span class="hll">  <span class="nx">Person</span><span class="o">:</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">__resolveType</span><span class="p">(</span><span class="nx">obj</span><span class="p">,</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">if</span> <span class="p">(</span><span class="nx">obj</span><span class="p">.</span><span class="nx">username</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">        <span class="k">return</span> <span class="s2">&quot;User&quot;</span><span class="p">;</span>
+</span><span class="hll">      <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class="hll">        <span class="k">return</span> <span class="s2">&quot;Author&quot;</span><span class="p">;</span>
+</span><span class="hll">      <span class="p">}</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">  <span class="p">},</span>
+</span>  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>Now we can try out our search first search query (you may want to add some authors and users with similar names first so that the query returns both kinds of objects). When we make a query that outputs an Interface type, we add any of the common fields as selections as usual, but we must use an <em>inline fragment</em> to fetch fields that are specific to any type as follows:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Query</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">query</span> <span class="k">SearchPeople</span><span class="p">(</span><span class="nv">$query</span><span class="p">:</span> <span class="k">String</span><span class="p">!</span>, <span class="nv">$orderBy</span><span class="p">:</span> <span class="k">SearchOrderBy</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">searchPeople</span><span class="p">(</span>query: <span class="nv">$query</span>, orderBy: <span class="nv">$orderBy</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">id</span>
+    <span class="k">name</span>
+    <span class="o">...</span> <span class="kt">on</span> <span class="k">Author</span> <span class="p">{</span>
+      <span class="k">books</span> <span class="p">{</span>
+        <span class="k">title</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="o">...</span> <span class="kt">on</span> <span class="k">User</span> <span class="p">{</span>
+      <span class="k">username</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>Query Variables</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;query&quot;</span><span class="p">:</span> <span class="s2">&quot;Alice&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;orderBy&quot;</span><span class="p">:</span> <span class="s2">&quot;RESULT_ASC&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>API Response</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;searchPeople&quot;</span><span class="p">:</span> <span class="p">[</span>
+      <span class="p">{</span>
+        <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;1&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Alice Liddell&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;username&quot;</span><span class="p">:</span> <span class="s2">&quot;rabbithole84&quot;</span>
+      <span class="p">},</span>
+      <span class="p">{</span>
+        <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="s2">&quot;3&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Alice Walker&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;books&quot;</span><span class="p">:</span> <span class="p">[</span>
+          <span class="p">{</span>
+            <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;The Color Purple&quot;</span>
+          <span class="p">}</span>
+        <span class="p">]</span>
+      <span class="p">}</span>
+    <span class="p">]</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="add-a-query-to-search-books-by-author-or-title">Add a Query to Search Books by Author or Title</h2>
+<p>Our final task for this chapter is to add the search query that retrieves books by their titles or author names. To do that, we’ll add a Union type definition for book search results and a <code>searchBooks</code> field on <code>Query</code> that returns the new type:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="hll"><span class="sb">  union BookResult = Book | Author</span>
+</span><span class="hll">
+</span><span class="sb">  # ...</span>
+
+<span class="sb">  type Query {</span>
+<span class="sb">    # ...</span>
+<span class="hll"><span class="sb">    searchBooks(</span>
+</span><span class="hll"><span class="sb">      exact: Boolean = false</span>
+</span><span class="hll"><span class="sb">      orderBy: SearchOrderBy</span>
+</span><span class="hll"><span class="sb">      query: String!</span>
+</span><span class="hll"><span class="sb">    ): [BookResult]</span>
+</span><span class="sb">    # ...</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>Next, we’ll add a method to the <code>JsonServerApi</code> data source called <code>searchBooks</code> that will fetch matches from both the <code>/authors</code> and <code>/books</code> endpoints, and then combine and sort them:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  
+<span class="hll">  <span class="nx">async</span> <span class="nx">searchBooks</span><span class="p">({</span> <span class="nx">exact</span><span class="p">,</span> <span class="nx">query</span><span class="p">,</span> <span class="nx">orderBy</span> <span class="o">=</span> <span class="s2">&quot;RESULT_ASC&quot;</span> <span class="p">})</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">bookQueryString</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">parseParams</span><span class="p">({</span>
+</span><span class="hll">      <span class="p">...(</span><span class="nx">exact</span> <span class="o">?</span> <span class="p">{</span> <span class="nx">title</span><span class="o">:</span> <span class="nx">query</span> <span class="p">}</span> <span class="o">:</span> <span class="p">{</span> <span class="nx">q</span><span class="o">:</span> <span class="nx">query</span> <span class="p">}),</span>
+</span><span class="hll">      <span class="nx">limit</span><span class="o">:</span> <span class="mi">50</span>
+</span><span class="hll">    <span class="p">});</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">authorQueryString</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">parseParams</span><span class="p">({</span>
+</span><span class="hll">      <span class="p">...(</span><span class="nx">exact</span> <span class="o">?</span> <span class="p">{</span> <span class="nx">name</span><span class="o">:</span> <span class="nx">query</span> <span class="p">}</span> <span class="o">:</span> <span class="p">{</span> <span class="nx">q</span><span class="o">:</span> <span class="nx">query</span> <span class="p">}),</span>
+</span><span class="hll">      <span class="nx">limit</span><span class="o">:</span> <span class="mi">50</span>
+</span><span class="hll">    <span class="p">});</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">authors</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/authors</span><span class="si">${</span><span class="nx">authorQueryString</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">books</span> <span class="o">=</span> <span class="nx">await</span> <span class="k">this</span><span class="p">.</span><span class="nx">get</span><span class="p">(</span><span class="sb">`/books</span><span class="si">${</span><span class="nx">bookQueryString</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">results</span> <span class="o">=</span> <span class="p">[].</span><span class="nx">concat</span><span class="p">(</span><span class="nx">authors</span><span class="p">,</span> <span class="nx">books</span><span class="p">).</span><span class="nx">sort</span><span class="p">((</span><span class="nx">a</span><span class="p">,</span> <span class="nx">b</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">      <span class="kr">const</span> <span class="nx">aKey</span> <span class="o">=</span> <span class="nx">a</span><span class="p">.</span><span class="nx">hasOwnProperty</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">)</span> <span class="o">?</span> <span class="s2">&quot;title&quot;</span> <span class="o">:</span> <span class="s2">&quot;name&quot;</span><span class="p">;</span>
+</span><span class="hll">      <span class="kr">const</span> <span class="nx">bKey</span> <span class="o">=</span> <span class="nx">b</span><span class="p">.</span><span class="nx">hasOwnProperty</span><span class="p">(</span><span class="s2">&quot;title&quot;</span><span class="p">)</span> <span class="o">?</span> <span class="s2">&quot;title&quot;</span> <span class="o">:</span> <span class="s2">&quot;name&quot;</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="hll">      <span class="k">return</span> <span class="nx">orderBy</span> <span class="o">===</span> <span class="s2">&quot;RESULT_ASC&quot;</span>
+</span><span class="hll">        <span class="o">?</span> <span class="nx">a</span><span class="p">[</span><span class="nx">aKey</span><span class="p">].</span><span class="nx">localeCompare</span><span class="p">(</span><span class="nx">b</span><span class="p">[</span><span class="nx">bKey</span><span class="p">])</span>
+</span><span class="hll">        <span class="o">:</span> <span class="nx">b</span><span class="p">[</span><span class="nx">bKey</span><span class="p">].</span><span class="nx">localeCompare</span><span class="p">(</span><span class="nx">a</span><span class="p">[</span><span class="nx">aKey</span><span class="p">]);</span>
+</span><span class="hll">    <span class="p">});</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">return</span> <span class="nx">results</span><span class="p">;</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">  
+</span>  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>Lastly, we’ll update the resolvers. Just as with the previous <code>Person</code> Interface type, we must add a <code>__resolveType</code> resolver so Apollo Server can identify what kind of Object type is returned:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+<span class="hll">   <span class="nx">BookResult</span><span class="o">:</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">__resolveType</span><span class="p">(</span><span class="nx">obj</span><span class="p">,</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">if</span> <span class="p">(</span><span class="nx">obj</span><span class="p">.</span><span class="nx">title</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">        <span class="k">return</span> <span class="s2">&quot;Book&quot;</span><span class="p">;</span>
+</span><span class="hll">      <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span><span class="hll">        <span class="k">return</span> <span class="s2">&quot;Author&quot;</span><span class="p">;</span>
+</span><span class="hll">      <span class="p">}</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">  <span class="p">},</span>
+</span>  <span class="c1">// ...</span>
+  <span class="nx">Query</span><span class="o">:</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+<span class="hll">    <span class="nx">searchBooks</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">searchBooks</span><span class="p">(</span><span class="nx">args</span><span class="p">);</span>
+</span><span class="hll">    <span class="p">},</span>
+</span>    <span class="c1">// ...</span>
+  <span class="p">},</span>
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>Again, just as with queries for Interface types, we then use inline fragments to select fields for type. You may wish to add authors and book titles with similar names to <code>db.json</code> before testing this query:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Query</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">query</span> <span class="k">SearchBooks</span><span class="p">(</span><span class="nv">$query</span><span class="p">:</span> <span class="k">String</span><span class="p">!</span>, <span class="nv">$orderBy</span><span class="p">:</span> <span class="k">SearchOrderBy</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">searchBooks</span><span class="p">(</span>query: <span class="nv">$query</span>, orderBy: <span class="nv">$orderBy</span><span class="p">)</span> <span class="p">{</span>
+    <span class="o">...</span> <span class="kt">on</span> <span class="k">Author</span> <span class="p">{</span>
+      <span class="k">name</span>
+      <span class="k">books</span> <span class="p">{</span>
+        <span class="k">title</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+    <span class="o">...</span> <span class="kt">on</span> <span class="k">Book</span> <span class="p">{</span>
+      <span class="k">title</span>
+      <span class="k">authors</span> <span class="p">{</span>
+        <span class="k">name</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>Query Variables</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;query&quot;</span><span class="p">:</span> <span class="s2">&quot;Adams&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;orderBy&quot;</span><span class="p">:</span> <span class="s2">&quot;RESULT_ASC&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p></p>
+<div class="code-context">
+<p>API Response</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;data&quot;</span><span class="p">:</span> <span class="p">{</span>
+    <span class="nt">&quot;searchBooks&quot;</span><span class="p">:</span> <span class="p">[</span>
+      <span class="p">{</span>
+        <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Douglas Adams&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;books&quot;</span><span class="p">:</span> <span class="p">[</span>
+          <span class="p">{</span>
+            <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;The Hitchhiker&#39;s Guide to the Galaxy&quot;</span>
+          <span class="p">},</span>
+          <span class="p">{</span>
+            <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;The Restaurant at the End of the Universe&quot;</span>
+          <span class="p">}</span>
+        <span class="p">]</span>
+      <span class="p">},</span>
+      <span class="p">{</span>
+        <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;John Adams&quot;</span><span class="p">,</span>
+        <span class="nt">&quot;authors&quot;</span><span class="p">:</span> <span class="p">[</span>
+          <span class="p">{</span>
+            <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;David McCullough&quot;</span>
+          <span class="p">}</span>
+        <span class="p">]</span>
+      <span class="p">}</span>
+    <span class="p">]</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="summary">Summary</h2>
+<p>In this chapter, we implemented some advanced GraphQL features in our schema. We first learned how to paginate results returned by fields with the support of Enum types as arguments. We also used the GraphQL types system’s two abstract types—Interfaces and Unions—to return results from fields that consist of multiple Object types.</p>
+<p>In the next chapter, we’ll add further enhancements to the Bibliotech API using custom Scalar types and directives, and we’ll also provide documentation for the fields and types in the API.</p>
+<section class="footnotes" role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1" role="doc-endnote"><p><a href="https://spec.graphql.org/June2018/#sec-Enums">https://spec.graphql.org/June2018/#sec-Enums</a><a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2" role="doc-endnote"><p><a href="https://www.apollographql.com/docs/apollo-server/schema/schema/#internal-values-advanced">https://www.apollographql.com/docs/apollo-server/schema/schema/#internal-values-advanced</a><a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+<footer>
+<p class="copyright">Copyright © 2021 <a href="https://8bit.press/">8-Bit Press Inc.</a> All rights reserved.</p>
+</footer>
+</div>
+</div>
+<script>
+(function () {
+  "use strict";
+
+  const chapter = document.getElementById("chapter");
+
+  // Set width of fixed-position chapter navigation based on parent
+  function setChapterNavWidth() {
+    const chapterNav = document.getElementsByClassName("chapter-nav")[0];
+    let { width: chapterWidth } = chapter.getBoundingClientRect();
+    chapterNav.setAttribute(
+      "style",
+      `width: ${chapterWidth >= 960 ? chapterWidth * 0.3 + 36 + "px" : "100%"}`
+    );
+  }
+
+  setChapterNavWidth();
+  window.addEventListener("resize", setChapterNavWidth);
+
+  // Open and close the book navigation in the masthead
+  const openMastheadButton = document.getElementById("masthead-open");
+  const closeMastheadButton = document.getElementById("masthead-close");
+  const masthead = document.getElementById("masthead");
+
+  openMastheadButton.addEventListener("click", function (event) {
+    event.stopPropagation();
+    masthead.style.marginLeft = "0px";
+  });
+
+  closeMastheadButton.addEventListener("click", function () {
+    masthead.style.marginLeft = "-100%";
+  });
+
+  chapter.addEventListener("click", function () {
+    if (masthead.style.marginLeft === "0px") {
+      masthead.style.marginLeft = "-100%";
+    }
+  });
+
+  // Add "Copy" button to code snippets
+  // Reference: https://tomspencer.dev/blog/2018/09/14/adding-click-to-copy-buttons-to-a-hugo-powered-blog/
+  if (!document.queryCommandSupported("copy")) {
+    return;
+  }
+
+  function flashCopyMessage(el, msg) {
+    el.textContent = msg;
+    setTimeout(function () {
+      el.textContent = "Copy";
+    }, 1000);
+  }
+
+  function selectText(node) {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return selection;
+  }
+
+  function addCopyButton(containerEl) {
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "highlight-copy-btn";
+    copyBtn.textContent = "Copy";
+
+    var codeEl = containerEl.firstElementChild;
+    copyBtn.addEventListener("click", function () {
+      try {
+        const selection = selectText(codeEl);
+        document.execCommand("copy");
+        selection.removeAllRanges();
+
+        flashCopyMessage(copyBtn, "Copied!");
+      } catch (e) {
+        console && console.log(e);
+        flashCopyMessage(copyBtn, "Failed :'(");
+      }
+    });
+
+    containerEl.appendChild(copyBtn);
+  }
+
+  // Add copy button to code blocks
+  var highlightBlocks = document.getElementsByClassName("highlight");
+  Array.prototype.forEach.call(highlightBlocks, addCopyButton);
+})();
+</script>
+</body>
+</html>

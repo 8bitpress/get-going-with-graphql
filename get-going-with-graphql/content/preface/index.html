@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US" xml:lang="en-US">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="../../images/favicon.ico" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Mandi Wise" />
+  <title>Get Going with GraphQL</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <link rel="stylesheet" href="../../css/web.min.css" />
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<div id="masthead">
+<div class="close-button-wrapper">
+<button id="masthead-close" type="button"><span>Close</span></button>
+</div>
+<header id="title-block-header">
+<h1 class="title">Get Going with GraphQL</h1>
+<p class="subtitle">Learn How to Build JavaScript Applications with Apollo Server and Apollo Client</p>
+<p class="author">Mandi Wise</p>
+</header>
+<nav class="book-nav">
+<ol class="front-matter-content">
+<li><a href="../preface/index.html">Preface</a></li>
+</ol>
+<ol class="main-matter-content">
+<li><a href="../chapter-01/index.html">Up and Running with GraphQL and Apollo Server</a></li>
+<li><a href="../chapter-02/index.html">More on Queries</a></li>
+<li><a href="../chapter-03/index.html">Mutating Data</a></li>
+<li><a href="../chapter-04/index.html">Pagination and Search Queries</a></li>
+<li><a href="../chapter-05/index.html">Documentation, Custom Scalars, and Custom Directives</a></li>
+<li><a href="../chapter-06/index.html">Authentication and Authorization</a></li>
+<li><a href="../chapter-07/index.html">React App Set-up</a></li>
+<li><a href="../chapter-08/index.html">Apollo Client with User Authentication</a></li>
+<li><a href="../chapter-09/index.html">Pagination, Mutations, and the Apollo Client Cache</a></li>
+<li><a href="../chapter-10/index.html">Real-time Updates with Subscriptions</a></li>
+</ol>
+<ol class="back-matter-content">
+<li><a href="../appendix-a/index.html">Appendix A</a></li>
+<li><a href="../about-the-author/index.html">About the Author</a></li>
+<li><a href="../changelog/index.html">Changelog</a></li>
+</ol>
+<img src="../../images/8bp-logo-white.svg" class="logo" alt="8-Bit Press Inc. logo" />
+</nav>
+</div>
+<div id="chapter">
+<div class="chapter-nav">
+<nav id="TOC" role="doc-toc">
+<button id="masthead-open" type="button"><span>Book Navigation</span></button>
+<h2 id="toc-title">Contents</h2>
+<ul>
+<li><a href="#preface">Preface</a>
+<ul>
+<li><a href="#whats-inside">What’s Inside</a></li>
+<li><a href="#who-should-read-this-book">Who Should Read this Book</a></li>
+<li><a href="#getting-the-most-from-this-book">Getting the Most from this Book</a></li>
+<li><a href="#formatting-conventions">Formatting Conventions</a></li>
+<li><a href="#package-versions">Package Versions</a></li>
+<li><a href="#reference-source-code">Reference Source Code</a></li>
+<li><a href="#required-software">Required Software</a></li>
+<li><a href="#optional-software">Optional Software</a></li>
+<li><a href="#the-game-plan">The Game Plan</a></li>
+</ul></li>
+</ul>
+</nav>
+</div>
+<div class="content">
+<h1 class="unnumbered" epub:type="preface" id="preface">Preface</h1>
+<p>Welcome to <em>Get Going with GraphQL</em>! I’m thrilled you’ve chosen this book to dive into learning about full-stack application development with GraphQL APIs.</p>
+<p>GraphQL was invented at Facebook in 2012 and was publicly launched in 2015. Since then, it has opened up a world of new possibilities for API design and consumption. Today, it has been famously adopted by companies including The New York Times, Shopify, Coursera, AirBnB, GitHub, and Netflix. It has also inspired countless open source projects related to it, including the popular suite of Apollo tools for working with GraphQL APIs in both client and server applications.</p>
+<p>It may seem like everyone is talking about these days, but if you’re new to GraphQL you may still be wondering what all of the fuss is about. If you visit the <a href="https://graphql.org/">graphql.org</a> homepage, you will see GraphQL described as “a query language for your API.” That’s pretty high-level, so from a more tactical perspective, the GraphQL specification outlines the mechanics of that query language as well as the runtime for responding to query requests received by an API. And despite what the “QL” in its name might suggest, it has nothing to do with any particular database implementation.</p>
+<p>GraphQL’s appeal stems largely from its orientation toward making API consumption easier for clients. Unlike a REST API, a GraphQL API is exposed through a single endpoint and will often stand between a client and any number of backing data sources. A well-designed GraphQL schema can also help client developers avoid the common REST-related headache of simultaneously over-fetching and under-fetching the data needed to render a user interface. What’s more, GraphQL puts client developers in the driver’s seat to query only the data that they need and in the shape that they need it. And with the right schema governance practices and observability tools in place, a GraphQL API can be safely evolved without versioning. That means that a GraphQL schema can be iterated to support new product requirements as they emerge and increase the velocity at which new features are released to users.</p>
+<p>With all of this in mind, it’s easy to see how GraphQL knowledge is a must-have for JavaScript developers today and this book has been thoughtfully designed to help you up ramp up quickly. Throughout this book, we’ll explore all of GraphQL’s essential features, as well as how Apollo Server and Apollo Client may be used to supercharge API and client application development.</p>
+<h2 id="whats-inside">What’s Inside</h2>
+<p>This book covers a wide range of topics relevant to developing web applications from scratch with JavaScript and does so using a practical, project-based approach. Working through this book from start to finish will leave you with a relatively full-featured React application powered by a GraphQL API.</p>
+<p>Specific topics covered throughout the book include:</p>
+<ul>
+<li>Setting up Apollo Server</li>
+<li>Working with built-in Scalar types</li>
+<li>Defining Object, Input Object, Enum, Interface, and Union types in a schema</li>
+<li>Supporting queries, mutations, and subscriptions with a GraphQL API</li>
+<li>Employing best practices such as using operation names and query variables</li>
+<li>Using an Apollo data source to fetch data in resolvers</li>
+<li>Paginating results received from a GraphQL query</li>
+<li>Creating custom scalars and directives</li>
+<li>Adding documentation to a GraphQL API</li>
+<li>Adding basic authentication to a Node.js application using Express middleware and JSON Web Tokens (JWTs)</li>
+<li>Adding authorization to a GraphQL API on a field-by-field basis</li>
+<li>Setting up a React application with Apollo Client 3</li>
+<li>Sending query, mutation, and subscription operations to a React application</li>
+<li>Sending authenticated requests from Apollo Client to a GraphQL API</li>
+<li>Leveraging Apollo Client’s normalized cache to reduce network requests</li>
+</ul>
+<p>In its exploration of these topics, this book is divided into 10 chapters. Chapters 1 to 6 focus entirely on the server side concerns of designing and building a GraphQL API with Apollo Server. Chapters 7 to 9 shift gears to the client side and cover the development of a React web application that consumes the GraphQL API. Chapter 10 wraps up the book by configuring subscription operation support on both the server and client applications.</p>
+<h2 id="who-should-read-this-book">Who Should Read this Book</h2>
+<p>This book assumes you have little or no prior knowledge of GraphQL, but does assume you have some experience building React applications. Before proceeding, consider if you have at least:</p>
+<ul>
+<li>Intermediate knowledge of JavaScript (including ES2015+ features of the language)</li>
+<li>Some experience building front-end user interfaces for the web with React (no experience with hooks is required)</li>
+<li>Some knowledge of how a REST API works (because we will use one as a backing data source for the GraphQL API)</li>
+<li>Experimented with Node.js in the context of web application development</li>
+</ul>
+<p>If those qualifications sound like they describe you, then you’re in the right place. By the time you’ve finished this book, you’ll feel confident drawing on many of the features of Apollo Server and Client and applying them to real-world development scenarios.</p>
+<h2 id="getting-the-most-from-this-book">Getting the Most from this Book</h2>
+<p>To get the most from your experience reading this book, I encourage you to work through the chapters chronologically because the code in each chapter builds on the previous one. This book and its chapters are structured around building out a single full-stack application, beginning with a GraphQL server and ending with a React application that consumes the API.</p>
+<p>If you intend to build out the demonstration application as you work through the chapters, I also encourage you to explicitly type out as much of the code that you encounter as possible rather than simply copying and pasting snippets. In my experience, taking the time to intentionally type out code examples aids comprehension and builds mental muscle memory.</p>
+<p>Of course, if you’re working on another GraphQL-based project right now and are in search of insights or code examples for any of the aforementioned topics, each chapter of this book also stands alone in building out a complete, logical chunk of functionality for the application. You will almost certainly find that various chapters serve as helpful reference points for that work too.</p>
+<h2 id="formatting-conventions">Formatting Conventions</h2>
+<h3 id="code-blocks">Code Blocks</h3>
+<p>In favor of brevity, some code examples are truncated where code that was previously added to a file doesn’t change in the context of a new update to that file. Additionally, file diffs are highlighted in code examples to enhance readability and filenames are added above the code blocks in italics, where applicable. For example:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="sb">  type Query {</span>
+<span class="hll"><span class="sb">    author(id: ID!): Author</span>
+</span><span class="sb">    authors: [Author]</span>
+<span class="hll"><span class="sb">    book(id: ID!): Book</span>
+</span><span class="sb">    books: [Book]</span>
+<span class="sb">  }</span>
+<span class="sb">`</span><span class="p">;</span>
+</pre></div>
+
+<h3 id="inline-code">Inline Code</h3>
+<p>Code and filenames that are referenced inline (for example, within a paragraph or list item) are rendered in <code>this monospaced font</code> to distinguish them from the other text.</p>
+<h3 id="info-boxes">Info Boxes</h3>
+<p>Supplementary notes and additional tips related to the main content are presented in gray boxes throughout the chapters as follows:</p>
+<div class="boxout">
+<p>You can find a current version of the GraphQL specification here: <a href="http://spec.graphql.org/">http://spec.graphql.org/</a></p>
+</div>
+<h3 id="quotes">Quotes</h3>
+<p>Longer sections of text directly quoted from another source are delineated with a gray border to the left of the quote:</p>
+<blockquote>
+<p>The best programs are written so that computing machines can perform them quickly and so that human beings can understand them clearly. A programmer is ideally an essayist who works with traditional aesthetic and literary forms as well as mathematical concepts, to communicate the way that an algorithm works and to convince a reader that the results will be correct.</p>
+<p><em>—Donald E. Knuth, Selected Papers on Computer Science</em></p>
+</blockquote>
+<h2 id="package-versions">Package Versions</h2>
+<p>For compatibility purposes, package versions are specified wherever you are instructed to install a package from npm. You may wish to experiment with updated package versions as they become available, but compatibility with the other code in this book cannot be guaranteed.</p>
+<h2 id="reference-source-code">Reference Source Code</h2>
+<p>The complete source code for the application built throughout this book may be accessed at:</p>
+<p><a href="https://github.com/8bitpress/get-going-with-graphql-source-code">https://github.com/8bitpress/get-going-with-graphql-source-code</a></p>
+<h2 id="required-software">Required Software</h2>
+<p>To build the application as outlined in the chapters that follow you will need to have <strong>Node.js 14.13.0 or higher</strong> installed on your computer. This version is required because it was the first version of Node.js that provided support for importing named exports from CommonJS modules using ES module syntax. You can download the latest LTS version of Node.js for your operating system here:</p>
+<p><a href="https://nodejs.org/en/download/">https://nodejs.org/en/download/</a></p>
+<h2 id="optional-software">Optional Software</h2>
+<p>Optionally, if you use VS Code as an editor, then also consider installing the <strong>Apollo GraphQL extension</strong> to enhance your development experience with features such as GraphQL syntax highlighting:</p>
+<p><a href="https://marketplace.visualstudio.com/items?itemName=apollographql.vscode-apollo">https://marketplace.visualstudio.com/items?itemName=apollographql.vscode-apollo</a></p>
+<p>And to facilitate client-side development, you may also wish to install the Apollo Client Developer Tools for Chrome or Firefox:</p>
+<p><a href="https://www.apollographql.com/docs/react/development-testing/developer-tooling/#apollo-client-devtools">https://www.apollographql.com/docs/react/development-testing/developer-tooling/#apollo-client-devtools</a></p>
+<h2 id="the-game-plan">The Game Plan</h2>
+<p>In the chapters that follow, we’ll build out a GraphQL API to be consumed by React application called <em>Bibliotech</em>. The client application will allow unauthenticated users to view details and reviews about books contained within the Bibliotech catalog. Users can also sign up for an account and create libraries of their favorite books and also submit and update reviews of their own when logged in.</p>
+<p>We have a lot of code to write to get from zero to full-stack application at the end of this book, so fire up your code editor and let’s go!</p>
+<footer>
+<p class="copyright">Copyright © 2021 <a href="https://8bit.press/">8-Bit Press Inc.</a> All rights reserved.</p>
+</footer>
+</div>
+</div>
+<script>
+(function () {
+  "use strict";
+
+  const chapter = document.getElementById("chapter");
+
+  // Set width of fixed-position chapter navigation based on parent
+  function setChapterNavWidth() {
+    const chapterNav = document.getElementsByClassName("chapter-nav")[0];
+    let { width: chapterWidth } = chapter.getBoundingClientRect();
+    chapterNav.setAttribute(
+      "style",
+      `width: ${chapterWidth >= 960 ? chapterWidth * 0.3 + 36 + "px" : "100%"}`
+    );
+  }
+
+  setChapterNavWidth();
+  window.addEventListener("resize", setChapterNavWidth);
+
+  // Open and close the book navigation in the masthead
+  const openMastheadButton = document.getElementById("masthead-open");
+  const closeMastheadButton = document.getElementById("masthead-close");
+  const masthead = document.getElementById("masthead");
+
+  openMastheadButton.addEventListener("click", function (event) {
+    event.stopPropagation();
+    masthead.style.marginLeft = "0px";
+  });
+
+  closeMastheadButton.addEventListener("click", function () {
+    masthead.style.marginLeft = "-100%";
+  });
+
+  chapter.addEventListener("click", function () {
+    if (masthead.style.marginLeft === "0px") {
+      masthead.style.marginLeft = "-100%";
+    }
+  });
+
+  // Add "Copy" button to code snippets
+  // Reference: https://tomspencer.dev/blog/2018/09/14/adding-click-to-copy-buttons-to-a-hugo-powered-blog/
+  if (!document.queryCommandSupported("copy")) {
+    return;
+  }
+
+  function flashCopyMessage(el, msg) {
+    el.textContent = msg;
+    setTimeout(function () {
+      el.textContent = "Copy";
+    }, 1000);
+  }
+
+  function selectText(node) {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return selection;
+  }
+
+  function addCopyButton(containerEl) {
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "highlight-copy-btn";
+    copyBtn.textContent = "Copy";
+
+    var codeEl = containerEl.firstElementChild;
+    copyBtn.addEventListener("click", function () {
+      try {
+        const selection = selectText(codeEl);
+        document.execCommand("copy");
+        selection.removeAllRanges();
+
+        flashCopyMessage(copyBtn, "Copied!");
+      } catch (e) {
+        console && console.log(e);
+        flashCopyMessage(copyBtn, "Failed :'(");
+      }
+    });
+
+    containerEl.appendChild(copyBtn);
+  }
+
+  // Add copy button to code blocks
+  var highlightBlocks = document.getElementsByClassName("highlight");
+  Array.prototype.forEach.call(highlightBlocks, addCopyButton);
+})();
+</script>
+</body>
+</html>

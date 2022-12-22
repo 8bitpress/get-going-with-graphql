@@ -1,0 +1,739 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US" xml:lang="en-US">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="../../images/favicon.ico" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Mandi Wise" />
+  <title>Get Going with GraphQL</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <link rel="stylesheet" href="../../css/web.min.css" />
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<div id="masthead">
+<div class="close-button-wrapper">
+<button id="masthead-close" type="button"><span>Close</span></button>
+</div>
+<header id="title-block-header">
+<h1 class="title">Get Going with GraphQL</h1>
+<p class="subtitle">Learn How to Build JavaScript Applications with Apollo Server and Apollo Client</p>
+<p class="author">Mandi Wise</p>
+</header>
+<nav class="book-nav">
+<ol class="front-matter-content">
+<li><a href="../preface/index.html">Preface</a></li>
+</ol>
+<ol class="main-matter-content">
+<li><a href="../chapter-01/index.html">Up and Running with GraphQL and Apollo Server</a></li>
+<li><a href="../chapter-02/index.html">More on Queries</a></li>
+<li><a href="../chapter-03/index.html">Mutating Data</a></li>
+<li><a href="../chapter-04/index.html">Pagination and Search Queries</a></li>
+<li><a href="../chapter-05/index.html">Documentation, Custom Scalars, and Custom Directives</a></li>
+<li><a href="../chapter-06/index.html">Authentication and Authorization</a></li>
+<li><a href="../chapter-07/index.html">React App Set-up</a></li>
+<li><a href="../chapter-08/index.html">Apollo Client with User Authentication</a></li>
+<li><a href="../chapter-09/index.html">Pagination, Mutations, and the Apollo Client Cache</a></li>
+<li><a href="../chapter-10/index.html">Real-time Updates with Subscriptions</a></li>
+</ol>
+<ol class="back-matter-content">
+<li><a href="../appendix-a/index.html">Appendix A</a></li>
+<li><a href="../about-the-author/index.html">About the Author</a></li>
+<li><a href="../changelog/index.html">Changelog</a></li>
+</ol>
+<img src="../../images/8bp-logo-white.svg" class="logo" alt="8-Bit Press Inc. logo" />
+</nav>
+</div>
+<div id="chapter">
+<div class="chapter-nav">
+<nav id="TOC" role="doc-toc">
+<button id="masthead-open" type="button"><span>Book Navigation</span></button>
+<h2 id="toc-title">Contents</h2>
+<ul>
+<li><a href="#real-time-updates-with-subscriptions">Chapter 10: Real-time Updates with Subscriptions</a>
+<ul>
+<li><a href="#support-a-subscription-for-new-reviews">Support a Subscription for New Reviews</a></li>
+<li><a href="#connect-to-the-websocket-endpoint-with-apollo-link">Connect to the WebSocket Endpoint with Apollo Link</a></li>
+<li><a href="#optional-add-an-apollo-link-to-handle-expired-jwts">Optional: Add an Apollo Link to Handle Expired JWTs</a></li>
+<li><a href="#add-a-subscription-operation-to-the-client">Add a Subscription Operation to the Client</a></li>
+<li><a href="#summary">Summary</a></li>
+</ul></li>
+</ul>
+</nav>
+</div>
+<div class="content">
+<h1 id="real-time-updates-with-subscriptions">Chapter 10: Real-time Updates with Subscriptions</h1>
+<div class="boxout">
+<p>In this chapter, we will:</p>
+<ul>
+<li>Configure a GraphQL server to support subscription operations</li>
+<li>Add a subscription to the GraphQL API that supports pushing new reviews for a single book to subscribed clients</li>
+<li>Create custom Apollo Links to handle requests to a WebSocket endpoint and authentication errors that are returned responses</li>
+<li>Subscribe to updates from a GraphQL API after an initial query is sent from a client</li>
+</ul>
+</div>
+<h2 id="support-a-subscription-for-new-reviews">Support a Subscription for New Reviews</h2>
+<p>The first nine chapters of this book focused on making requests to a GraphQL API using the query and mutation root operation types. In this concluding chapter, we will finally turn our attention to the third root operation type outlined in the GraphQL specification. Fields queried using the <code>subscription</code> root operation type will allow clients to receive data from the API via long-lived requests that fetch new data as it becomes available on the server.</p>
+<p>Specifically, we will create a <code>reviewAdded</code> field on the root <code>Subscription</code> type in the schema to allow Bibliotech’s React application to add new reviews to the applicable book pages in real-time. Unlike the query and mutation operations that are commonly handled using HTTP as a transport mechanism, GraphQL subscription operations are often handled using <a href="https://en.wikipedia.org/wiki/WebSocket">WebSockets</a> to persist an open connection between the client and server. That means we’ll need to do some additional configuration on the server and client sides to add support for subscriptions. But before we jump into how to add subscription support to a GraphQL API, we should pause to consider why we would choose to support any subscription operations in the first place.</p>
+<p>Subscription operations are best used for data that changes frequently and incrementally, and also when keeping that data up-to-date in an interface is essential to user experience. GraphQL subscriptions can be a very convenient tool to reach for to support client application features that have these requirements, but there are important trade-offs to consider. For example, horizontally scaling servers that respond to WebSocket requests will be more complicated than scaling servers that only respond to HTTP requests because these connections are stateful and each client needs to remain bound to a specific instance of the server. Additionally, WebSocket connections may have battery implications for mobile devices. So for less frequent updates, it may be worth considering whether another solution such as periodic polling may provide a better answer instead.</p>
+<p>Using a subscription operation to receive real-time book review updates may seem like overkill based on the previous criteria. But for educational purposes, we’ll proceed with adding the <code>reviewAdded</code> subscription so we can see what needs to be wired up in the server and client applications to support this operation (because this would be an awfully short chapter if we didn’t!).</p>
+<p>Our first step will be to install some packages that will help us handle WebSocket connections and subscription operations on the server. Historically, the <a href="https://github.com/apollographql/subscriptions-transport-ws">subscriptions-transport-ws</a> package has been the go-to option for setting up subscriptions directly with Apollo Server 2.x. However, that package is no longer maintained and <a href="https://github.com/apollographql/apollo-server/issues/2360#issuecomment-803149134">subscription support in Apollo Server 3</a> will likely work quite differently when it eventually lands, so we will opt for using the <a href="https://github.com/enisdenjo/graphql-ws">graphql-ws</a> library instead. We can use this package alongside Apollo Server Express, so from the client’s perspective, the experience of consuming data via the <code>subscription</code> root operation type will be similar to using Apollo Server’s built-in subscription support. Let’s install graphql-ws in the <code>server</code> directory now, as well as a WebSocket library for Node.js called ws:</p>
+<div class="highlight"><pre><span></span>npm i graphql-ws@4.3.1 ws@7.4.4
+</pre></div>
+
+<p>Next, we’ll update the imports at the top of the main <code>index.js</code> file in <code>server/src</code>:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="nx">http</span> <span class="nx">from</span> <span class="s2">&quot;http&quot;</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="kr">import</span> <span class="p">{</span> <span class="nx">ApolloServer</span><span class="p">,</span> <span class="nx">makeExecutableSchema</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server-express&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">applyMiddleware</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql-middleware&quot;</span><span class="p">;</span>
+<span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">useServer</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql-ws/lib/use/ws&quot;</span><span class="p">;</span>
+</span><span class="kr">import</span> <span class="nx">cors</span> <span class="nx">from</span> <span class="s2">&quot;cors&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">express</span> <span class="nx">from</span> <span class="s2">&quot;express&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">expressJwt</span> <span class="nx">from</span> <span class="s2">&quot;express-jwt&quot;</span><span class="p">;</span>
+<span class="hll"><span class="kr">import</span> <span class="nx">ws</span> <span class="nx">from</span> <span class="s2">&quot;ws&quot;</span><span class="p">;</span>
+</span>
+<span class="c1">// ...</span>
+</pre></div>
+
+<p>Note that we import the <code>http</code> module from Node.js because we need access to the HTTP server powering the GraphQL API directly now, rather than allowing Express to create this server instance under the hood for us. To do that, instead of calling <code>app.listen</code> at the bottom of the file we’ll call <code>http.createServer</code> and pass the Express <code>app</code> into it. Then we’ll call the <code>listen</code> method on the <code>httpServer</code> object and create the WebSocket server at <code>/graphql</code> in its callback first and then call the <code>useServer</code> function from graphql-ws, passing it the executable schema and the new <code>wsObject</code>:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="nx">server</span><span class="p">.</span><span class="nx">applyMiddleware</span><span class="p">({</span> <span class="nx">app</span><span class="p">,</span> <span class="nx">cors</span><span class="o">:</span> <span class="kc">false</span> <span class="p">});</span>
+<span class="hll"><span class="kr">const</span> <span class="nx">httpServer</span> <span class="o">=</span> <span class="nx">http</span><span class="p">.</span><span class="nx">createServer</span><span class="p">(</span><span class="nx">app</span><span class="p">);</span>
+</span><span class="hll">
+</span><span class="hll"><span class="nx">httpServer</span><span class="p">.</span><span class="nx">listen</span><span class="p">(</span><span class="nx">port</span><span class="p">,</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">  <span class="kr">const</span> <span class="nx">wsServer</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">ws</span><span class="p">.</span><span class="nx">Server</span><span class="p">({</span> <span class="nx">server</span><span class="o">:</span> <span class="nx">httpServer</span><span class="p">,</span> <span class="nx">path</span><span class="o">:</span> <span class="s2">&quot;/graphql&quot;</span> <span class="p">});</span>
+</span><span class="hll">  <span class="nx">useServer</span><span class="p">({</span> <span class="nx">schema</span><span class="o">:</span> <span class="nx">schemaWithPermissions</span> <span class="p">},</span> <span class="nx">wsServer</span><span class="p">);</span>
+</span><span class="hll">
+</span><span class="hll">  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span>
+</span><span class="hll">    <span class="sb">`Server ready at http://localhost:</span><span class="si">${</span><span class="nx">port</span><span class="si">}${</span><span class="nx">server</span><span class="p">.</span><span class="nx">graphqlPath</span><span class="si">}</span><span class="sb">`</span>
+</span><span class="hll">  <span class="p">);</span>
+</span><span class="hll">  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span>
+</span><span class="hll">    <span class="sb">`Subscriptions ready at ws://localhost:</span><span class="si">${</span><span class="nx">port</span><span class="si">}${</span><span class="nx">wsServer</span><span class="p">.</span><span class="nx">options</span><span class="p">.</span><span class="nx">path</span><span class="si">}</span><span class="sb">`</span>
+</span><span class="hll">  <span class="p">);</span>
+</span><span class="hll"><span class="p">});</span>
+</span></pre></div>
+
+<p>For subscription operations, the <code>JsonServerApi</code> data source won’t be added to the resolver context automatically, so we’ll need to use the <code>context</code> option in the object argument passed into <code>useServer</code> to manually set this data source on the context:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="nx">httpServer</span><span class="p">.</span><span class="nx">listen</span><span class="p">(</span><span class="nx">port</span><span class="p">,</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+  <span class="kr">const</span> <span class="nx">wsServer</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">ws</span><span class="p">.</span><span class="nx">Server</span><span class="p">({</span> <span class="nx">server</span><span class="o">:</span> <span class="nx">httpServer</span><span class="p">,</span> <span class="nx">path</span><span class="o">:</span> <span class="s2">&quot;/graphql&quot;</span> <span class="p">});</span>
+<span class="hll">  <span class="nx">useServer</span><span class="p">(</span>
+</span><span class="hll">    <span class="p">{</span>
+</span><span class="hll">      <span class="nx">schema</span><span class="o">:</span> <span class="nx">schemaWithPermissions</span><span class="p">,</span>
+</span><span class="hll">      <span class="nx">context</span><span class="o">:</span> <span class="nx">ctx</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">        <span class="kr">const</span> <span class="nx">jsonServerApi</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">JsonServerApi</span><span class="p">();</span>
+</span><span class="hll">        <span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">initialize</span><span class="p">({</span> <span class="nx">context</span><span class="o">:</span> <span class="nx">ctx</span><span class="p">,</span> <span class="nx">cache</span><span class="o">:</span> <span class="kc">undefined</span> <span class="p">});</span>
+</span><span class="hll">        <span class="k">return</span> <span class="p">{</span> <span class="nx">dataSources</span><span class="o">:</span> <span class="p">{</span> <span class="nx">jsonServerApi</span> <span class="p">}</span> <span class="p">};</span>
+</span><span class="hll">      <span class="p">}</span>
+</span><span class="hll">    <span class="p">},</span>
+</span><span class="hll">    <span class="nx">wsServer</span>
+</span><span class="hll">  <span class="p">);</span>
+</span>
+  <span class="c1">// ...</span>
+<span class="p">});</span>
+</pre></div>
+
+<p>Behind the scenes, GraphQL subscriptions are typically supported by some kind of pub/sub mechanism so that relevant subscription-related messages may be published at various points during runtime (often in a mutation resolver) and then received by subscription resolvers. There’s no built-in pub/sub feature in Apollo Server or graphql-ws, so we’ll need to install another package for that as well:</p>
+<div class="highlight"><pre><span></span>npm i graphql-subscriptions@1.2.1
+</pre></div>
+
+<p>This library will provide us with a basic, in-memory pub/sub implementation that will work well for development purposes. In production, however, we’d likely want to upgrade to <a href="https://github.com/apollographql/graphql-subscriptions#pubsub-implementations">a more advanced pub/sub solution</a> that uses the <code>PubSubEngine</code> abstract class bundled in this package. Now we’re ready to add the <code>Subscription</code> type with a <code>reviewAdded</code> field to our type definitions:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server-express&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+<span class="hll">
+</span><span class="hll"><span class="sb">  type Subscription {</span>
+</span><span class="hll"><span class="sb">    reviewAdded(bookId: ID!): Review</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>We add the <code>bookId</code> as a field argument above because when a new review is added we want to make sure any user viewing a book page only receives updates about new reviews for that specific book (rather than every single book in the Bibliotech catalog).</p>
+<p>Next, we’ll instantiate a new <code>PubSub</code> object in <code>resolvers.js</code> and also create a constant for a <code>REVIEW_ADDED</code> topic that we will use to capture all messages related to new reviews:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">PubSub</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql-subscriptions&quot;</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="kr">import</span> <span class="nx">DateTimeType</span> <span class="nx">from</span> <span class="s2">&quot;./scalars/DateTimeType.js&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">RatingType</span> <span class="nx">from</span> <span class="s2">&quot;./scalars/RatingType.js&quot;</span><span class="p">;</span>
+
+<span class="hll"><span class="kr">const</span> <span class="nx">pubsub</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">PubSub</span><span class="p">();</span>
+</span><span class="hll"><span class="kr">const</span> <span class="nx">REVIEW_ADDED</span> <span class="o">=</span> <span class="s2">&quot;REVIEW_ADDED&quot;</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="c1">// ...</span>
+</pre></div>
+
+<p>Whenever a new review is added, we’ll publish a message to the <code>REVIEW_ADDED</code> topic with a payload that contains the review data. To do that, we’ll call the <code>publish</code> method on the <code>pubsub</code> object we previously instantiated, passing it the topic name and the review payload:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  <span class="nx">Mutation</span><span class="o">:</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+<span class="hll">    <span class="nx">async</span> <span class="nx">createReview</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="p">{</span> <span class="nx">input</span> <span class="p">},</span> <span class="p">{</span> <span class="nx">dataSources</span> <span class="p">},</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="kr">const</span> <span class="nx">review</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">dataSources</span><span class="p">.</span><span class="nx">jsonServerApi</span><span class="p">.</span><span class="nx">createReview</span><span class="p">(</span><span class="nx">input</span><span class="p">);</span>
+</span><span class="hll">      <span class="nx">pubsub</span><span class="p">.</span><span class="nx">publish</span><span class="p">(</span><span class="nx">REVIEW_ADDED</span><span class="p">,</span> <span class="p">{</span> <span class="nx">reviewAdded</span><span class="o">:</span> <span class="nx">review</span> <span class="p">});</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">review</span><span class="p">;</span>
+</span>    <span class="p">},</span>
+    <span class="c1">// ...</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>Next, we must add a resolver for the <code>reviewAdded</code> field. This resolver will call the <code>asyncIterator</code> method on the same <code>pubsub</code> object and pass this method the constant for the <code>REVIEW_ADDED</code> topic so it knows what topic is should listen to:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  <span class="nx">Mutation</span><span class="o">:</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+<span class="hll">  <span class="p">},</span>
+</span><span class="hll">  <span class="nx">Subscription</span><span class="o">:</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">reviewAdded</span><span class="o">:</span> <span class="p">{</span>
+</span><span class="hll">      <span class="nx">subscribe</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">        <span class="k">return</span> <span class="nx">pubsub</span><span class="p">.</span><span class="nx">asyncIterator</span><span class="p">([</span><span class="nx">REVIEW_ADDED</span><span class="p">]);</span>
+</span><span class="hll">      <span class="p">}</span>
+</span><span class="hll">    <span class="p">}</span>
+</span>  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>Before moving on, let’s pause and consider what the above code does. Whenever a message about any new review is posted to the <code>REVIEW_ADDED</code> topic, this data will be pushed down to subscribed clients. However, we only want to send updates to clients if the review belongs to the book that they are currently viewing. To tame this potential firehose, we can use the <code>withFilter</code> function provided by graphql-subscriptions to set a criterion for what review updates will be shared with a given subscribed client. Here, this filter will be set based on the <code>bookId</code> value provided in the operation document initially sent by the client. The <code>withFilter</code> function takes the resolver function we previously defined as the first argument, and as a second argument, it takes a function that returns a boolean to indicate if the published message applies to the subscribed client:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">PubSub</span><span class="p">,</span> <span class="nx">withFilter</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql-subscriptions&quot;</span><span class="p">;</span>
+</span>
+<span class="c1">// ...</span>
+
+<span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  <span class="nx">Subscription</span><span class="o">:</span> <span class="p">{</span>
+     <span class="nx">reviewAdded</span><span class="o">:</span> <span class="p">{</span>
+<span class="hll">      <span class="nx">subscribe</span><span class="o">:</span> <span class="nx">withFilter</span><span class="p">(</span>
+</span><span class="hll">        <span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span>          <span class="k">return</span> <span class="nx">pubsub</span><span class="p">.</span><span class="nx">asyncIterator</span><span class="p">([</span><span class="nx">REVIEW_ADDED</span><span class="p">]);</span>
+<span class="hll">        <span class="p">},</span>
+</span><span class="hll">        <span class="p">(</span><span class="nx">payload</span><span class="p">,</span> <span class="nx">variables</span><span class="p">,</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">          <span class="k">return</span> <span class="nx">payload</span><span class="p">.</span><span class="nx">reviewAdded</span><span class="p">.</span><span class="nx">bookId</span> <span class="o">===</span> <span class="nb">parseInt</span><span class="p">(</span><span class="nx">variables</span><span class="p">.</span><span class="nx">bookId</span><span class="p">);</span>
+</span><span class="hll">        <span class="p">}</span>
+</span><span class="hll">      <span class="p">)</span>
+</span>    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>With this code in place, our React application will now be able to send a subscription operation for new reviews to the Bibliotech GraphQL API.</p>
+<h2 id="connect-to-the-websocket-endpoint-with-apollo-link">Connect to the WebSocket Endpoint with Apollo Link</h2>
+<p>Jumping back over to the client side, we also have some additional configuration to do to be able to send subscription operations including the <code>reviewAdded</code> field to the new WebSocket-powered endpoint. When we originally configured Apollo Client in Chapter 8 we instantiated an <code>HttpLink</code> and set that link as the <code>link</code> option in the <code>ApolloClient</code> constructor. While it may have seemed that there wouldn’t be much else for us to do with the <code>link</code> property beyond that, in reality, it enables a very powerful feature of Apollo Client called <a href="https://www.apollographql.com/docs/react/api/link/introduction/">Apollo Links</a>. So to send requests to the WebSocket endpoint, we’ll need to use a custom Apollo Link.</p>
+<p>Apollo Links allow us to modify the way we send requests to a GraphQL API. The most important thing to know about Apollo Links is that they allow us to chain together the units of work we want to perform before getting the result of a GraphQL operation. These units of work can be composed together so that the first “link” in the chain operates on the original GraphQL operation object and the links that follow work on the output of the link that precedes it.</p>
+<p>The last link in the composed chain will be a <em>terminating link</em>, and for our purposes, this link will send a network request to the server to fetch a result for the GraphQL operation. This is what the <code>HttpLink</code> currently does for us:</p>
+<p><img src="../../images/diagrams/apollo-link.png" class="center-no-caption" alt="Diagram of a conceptual Apollo Link chain" /></p>
+<p>Note that a terminating link doesn’t necessarily need to fetch data from a server if there is some other way to obtain the desired execution result. A standard Apollo Client set-up will use the <code>HttpLink</code> because it creates the typical terminating link for fetching data from a GraphQL endpoint over an HTTP connection. To allow a client application to send subscription operations to the WebSocket endpoint, we will need to create a terminating link for this purpose too and then conditionally send requests to the API depending on what kind of root operation type the operation document contains. To do that, we can use the <code>createClient</code> function provided in the same graphql-ws library that we used on the server. Let’s install graphql-ws in the <code>client</code> directory now:</p>
+<div class="highlight"><pre><span></span>npm i graphql-ws@4.3.2
+</pre></div>
+
+<p>The graphql-ws documentation provides a template for creating an Apollo Link using the <code>createClient</code> function, so we’ll create a new <code>links</code> directory in <code>client/src/graphql</code> and copy and past that template into a new <code>WebSocketLink.js</code> file in there:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/links/WebSocketLink.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">ApolloLink</span><span class="p">,</span> <span class="nx">Observable</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">createClient</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql-ws&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">print</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql&quot;</span><span class="p">;</span>
+
+<span class="kr">class</span> <span class="nx">WebSocketLink</span> <span class="kr">extends</span> <span class="nx">ApolloLink</span> <span class="p">{</span>
+  <span class="nx">constructor</span><span class="p">(</span><span class="nx">options</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kr">super</span><span class="p">();</span>
+    <span class="k">this</span><span class="p">.</span><span class="nx">client</span> <span class="o">=</span> <span class="nx">createClient</span><span class="p">(</span><span class="nx">options</span><span class="p">);</span>
+  <span class="p">}</span>
+
+  <span class="nx">request</span><span class="p">(</span><span class="nx">operation</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="k">new</span> <span class="nx">Observable</span><span class="p">(</span><span class="nx">sink</span> <span class="p">=&gt;</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">client</span><span class="p">.</span><span class="nx">subscribe</span><span class="p">(</span>
+        <span class="p">{</span> <span class="p">...</span><span class="nx">operation</span><span class="p">,</span> <span class="nx">query</span><span class="o">:</span> <span class="nx">print</span><span class="p">(</span><span class="nx">operation</span><span class="p">.</span><span class="nx">query</span><span class="p">)</span> <span class="p">},</span>
+        <span class="p">{</span>
+          <span class="nx">next</span><span class="o">:</span> <span class="nx">sink</span><span class="p">.</span><span class="nx">next</span><span class="p">.</span><span class="nx">bind</span><span class="p">(</span><span class="nx">sink</span><span class="p">),</span>
+          <span class="nx">complete</span><span class="o">:</span> <span class="nx">sink</span><span class="p">.</span><span class="nx">complete</span><span class="p">.</span><span class="nx">bind</span><span class="p">(</span><span class="nx">sink</span><span class="p">),</span>
+          <span class="nx">error</span><span class="o">:</span> <span class="nx">err</span> <span class="p">=&gt;</span> <span class="p">{</span>
+            <span class="k">if</span> <span class="p">(</span><span class="nx">err</span> <span class="k">instanceof</span> <span class="nb">Error</span><span class="p">)</span> <span class="p">{</span>
+              <span class="k">return</span> <span class="nx">sink</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="nx">err</span><span class="p">);</span>
+            <span class="p">}</span>
+
+            <span class="k">if</span> <span class="p">(</span><span class="nx">err</span> <span class="k">instanceof</span> <span class="nx">CloseEvent</span><span class="p">)</span> <span class="p">{</span>
+              <span class="k">return</span> <span class="nx">sink</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span>
+                <span class="k">new</span> <span class="nb">Error</span><span class="p">(</span>
+                  <span class="sb">`Socket closed with event </span><span class="si">${</span><span class="nx">err</span><span class="p">.</span><span class="nx">code</span><span class="si">}</span><span class="sb"> </span><span class="si">${</span><span class="nx">err</span><span class="p">.</span><span class="nx">reason</span> <span class="o">||</span> <span class="s2">&quot;&quot;</span><span class="si">}</span><span class="sb">`</span>
+                <span class="p">)</span>
+              <span class="p">);</span>
+            <span class="p">}</span>
+
+            <span class="k">return</span> <span class="nx">sink</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span>
+              <span class="k">new</span> <span class="nb">Error</span><span class="p">(</span><span class="nx">err</span><span class="p">.</span><span class="nx">map</span><span class="p">(({</span> <span class="nx">message</span> <span class="p">})</span> <span class="p">=&gt;</span> <span class="nx">message</span><span class="p">).</span><span class="nx">join</span><span class="p">(</span><span class="s2">&quot;, &quot;</span><span class="p">))</span>
+            <span class="p">);</span>
+          <span class="p">}</span>
+        <span class="p">}</span>
+      <span class="p">);</span>
+    <span class="p">});</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">WebSocketLink</span><span class="p">;</span>
+</pre></div>
+
+<p>When we create a <code>WebSocketLink</code> using this class, we will need to provide an <code>url</code> property in the object passed into it as an argument. The value or the <code>url</code> property will be retrieved from a new <code>REACT_APP_SUBSCRIPTIONS_ENDPOINT</code> variable that we’ll create in the client’s <code>.env</code> file:</p>
+<p></p>
+<div class="code-context">
+<p>client/.env</p>
+</div>
+<div class="highlight"><pre><span></span>REACT_APP_GRAPHQL_ENDPOINT=http://localhost:3000/graphql
+<span class="hll">REACT_APP_SUBSCRIPTIONS_ENDPOINT=ws://localhost:3000/graphql
+</span></pre></div>
+
+<p>To use the Create React App proxy to establish a WebSocket connection, we’ll need a more advanced proxy configuration than what we currently have in the client’s <code>package.json</code> file. To configure the proxy manually, we’ll first remove the <code>"proxy": "http://localhost:4000"</code> line from the client’s <code>package.json</code> file and then install this package in the <code>client</code> directory:</p>
+<div class="highlight"><pre><span></span>npm i http-proxy-middleware@1.1.0
+</pre></div>
+
+<p>To get direct access to the Express app that powers Create React App’s development server so that we can add custom proxy middleware, we’ll create a <code>setupProxy.js</code> file in <code>client/src</code> with the following code:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/setupProxy.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">const</span> <span class="p">{</span> <span class="nx">createProxyMiddleware</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">require</span><span class="p">(</span><span class="s2">&quot;http-proxy-middleware&quot;</span><span class="p">);</span>
+
+<span class="kr">const</span> <span class="nx">target</span> <span class="o">=</span> <span class="s2">&quot;http://localhost:4000&quot;</span><span class="p">;</span>
+
+<span class="nx">module</span><span class="p">.</span><span class="nx">exports</span> <span class="o">=</span> <span class="kd">function</span> <span class="p">(</span><span class="nx">app</span><span class="p">)</span> <span class="p">{</span>
+  <span class="nx">app</span><span class="p">.</span><span class="nx">use</span><span class="p">(</span>
+    <span class="s2">&quot;/graphql&quot;</span><span class="p">,</span> 
+    <span class="nx">createProxyMiddleware</span><span class="p">(</span><span class="s2">&quot;/graphql&quot;</span><span class="p">,</span> <span class="p">{</span> <span class="nx">target</span><span class="p">,</span> <span class="nx">ws</span><span class="o">:</span> <span class="kc">true</span> <span class="p">})</span>
+  <span class="p">);</span>
+<span class="p">};</span>
+</pre></div>
+
+<div class="boxout">
+<p>You can read more about proxy configurations in the <a href="https://create-react-app.dev/docs/proxying-api-requests-in-development/#configuring-the-proxy-manually">Create React App documentation</a>.</p>
+</div>
+<p>We don’t need to import the <code>setupProxy.js</code> file anywhere because it will be registered automatically when the React application’s development server starts. Now we’re ready to set up a <code>WebSocketLink</code> for Apollo Client. We’ll begin by importing that class at the top of the <code>apollo.js</code> file and then instantiating a new WebSocket-powered link and setting it as the <code>wsLink</code> variable. Similarly, we will now declare an <code>httpLink</code> variable and set its value as an instantiated <code>HttpLink</code> object instead of doing this directly in the object passed into the <code>ApolloClient</code> constructor:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/apollo.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">ApolloClient</span><span class="p">,</span> <span class="nx">HttpLink</span><span class="p">,</span> <span class="nx">InMemoryCache</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+
+<span class="kr">import</span> <span class="nx">typePolicies</span> <span class="nx">from</span> <span class="s2">&quot;./typePolicies&quot;</span><span class="p">;</span>
+<span class="hll"><span class="kr">import</span> <span class="nx">WebSocketLink</span> <span class="nx">from</span> <span class="s2">&quot;./links/WebSocketLink&quot;</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="hll"><span class="kr">const</span> <span class="nx">httpLink</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">HttpLink</span><span class="p">({</span>
+</span><span class="hll">  <span class="nx">uri</span><span class="o">:</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">REACT_APP_GRAPHQL_ENDPOINT</span>
+</span><span class="hll"><span class="p">});</span>
+</span><span class="hll">
+</span><span class="hll"><span class="kr">const</span> <span class="nx">wsLink</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">WebSocketLink</span><span class="p">({</span>
+</span><span class="hll">  <span class="nx">url</span><span class="o">:</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">REACT_APP_SUBSCRIPTIONS_ENDPOINT</span>
+</span><span class="hll"><span class="p">});</span>
+</span>
+<span class="c1">// ...</span>
+</pre></div>
+
+<p>We now have two different terminating links at our disposal, but we can only use one at a time at the end of an Apollo Link chain. To get around this constraint, we can use the <code>split</code> function provided by Apollo Client. The first argument to this function is a function that must return <code>true</code> or <code>false</code> and that takes the operation object as a parameter. The second argument is the link to use if the previous function returns <code>true</code>. The final (optional) argument is the link to use if the function returns <code>false</code>. For our purposes, we will write a test function to check if the root operation type is a subscription and use the <code>wsLink</code> if it is, otherwise, the <code>httpLink</code> will be used. We’ll also need the help of the <code>getMainDefinition</code> utility function from Apollo Client to get the query definition in the test function:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/apollo.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">ApolloClient</span><span class="p">,</span> <span class="nx">HttpLink</span><span class="p">,</span> <span class="nx">InMemoryCache</span><span class="p">,</span> <span class="nx">split</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">getMainDefinition</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client/utilities&quot;</span><span class="p">;</span>
+</span>
+<span class="c1">// ...</span>
+
+<span class="hll"><span class="kr">const</span> <span class="nx">link</span> <span class="o">=</span> <span class="nx">split</span><span class="p">(</span>
+</span><span class="hll">  <span class="p">({</span> <span class="nx">query</span> <span class="p">})</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">definition</span> <span class="o">=</span> <span class="nx">getMainDefinition</span><span class="p">(</span><span class="nx">query</span><span class="p">);</span>
+</span><span class="hll">    <span class="k">return</span> <span class="p">(</span>
+</span><span class="hll">      <span class="nx">definition</span><span class="p">.</span><span class="nx">kind</span> <span class="o">===</span> <span class="s2">&quot;OperationDefinition&quot;</span> <span class="o">&amp;&amp;</span>
+</span><span class="hll">      <span class="nx">definition</span><span class="p">.</span><span class="nx">operation</span> <span class="o">===</span> <span class="s2">&quot;subscription&quot;</span>
+</span><span class="hll">    <span class="p">);</span>
+</span><span class="hll">  <span class="p">},</span>
+</span><span class="hll">  <span class="nx">wsLink</span><span class="p">,</span>
+</span><span class="hll">  <span class="nx">httpLink</span>
+</span><span class="hll"><span class="p">);</span>
+</span><span class="hll">
+</span><span class="kr">const</span> <span class="nx">client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">ApolloClient</span><span class="p">({</span>
+  <span class="nx">cache</span><span class="o">:</span> <span class="k">new</span> <span class="nx">InMemoryCache</span><span class="p">({</span> <span class="nx">typePolicies</span> <span class="p">}),</span>
+  <span class="nx">connectToDevTools</span><span class="o">:</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">NODE_ENV</span> <span class="o">===</span> <span class="s2">&quot;development&quot;</span><span class="p">,</span>
+<span class="hll">  <span class="nx">link</span>
+</span><span class="p">});</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">client</span><span class="p">;</span>
+</pre></div>
+
+<p>With this code in place, Apollo Client is now equipped to send subscription operations to the provided WebSocket endpoint while continuing to send query and mutation operations to the HTTP endpoint.</p>
+<h2 id="optional-add-an-apollo-link-to-handle-expired-jwts">Optional: Add an Apollo Link to Handle Expired JWTs</h2>
+<p>Now that we have a deeper understanding of how Apollo Link works, we can add another link to the chain before the terminating link that will enhance the error-handling experience when a user triggers an action that requires authentication after their JWT has expired. This link will first check if any errors were received in the response, then check if one of those errors was a <code>Not Authorised!</code> error from GraphQL Shield, then check if the user’s JWT has passed its expiration time, and finally redirect the user back to the <code>/login</code> route using <code>history.push</code> if they need to re-authenticate.</p>
+<p>When we create the custom error link, we won’t be able to access the <code>history</code> object using the <code>useHistory</code> hook because we can only call hooks inside of React components or other hooks. To get around this limitation, we can install the history library to create a custom history object to use instead of the one that’s automatically available with React Router’s <code>BrowserRouter</code>. We’ll begin by installing the package in the <code>client</code> directory:</p>
+<div class="highlight"><pre><span></span>npm i history@4.10.1
+</pre></div>
+
+<p>In <code>client/src/router/index.js</code>, we can now create and export the custom history object:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/router/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">createBrowserHistory</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;history&quot;</span><span class="p">;</span>
+</span>
+<span class="c1">// ...</span>
+
+<span class="hll"><span class="kr">export</span> <span class="kr">const</span> <span class="nx">history</span> <span class="o">=</span> <span class="nx">createBrowserHistory</span><span class="p">();</span>
+</span><span class="hll">
+</span><span class="c1">// ...</span>
+</pre></div>
+
+<p>Next, we’ll update the main <code>index.js</code> file for the client so that the router imports and uses the new <code>history</code> object. Because we can’t use a custom history object with the <code>BrowserRouter</code>, we’ll have to use the generic <code>Router</code> component from React Router instead now:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">ApolloProvider</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+<span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">Router</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react-router-dom&quot;</span><span class="p">;</span>
+</span><span class="kr">import</span> <span class="nx">ReactDOM</span> <span class="nx">from</span> <span class="s2">&quot;react-dom&quot;</span><span class="p">;</span>
+
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">AuthProvider</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;./context/AuthContext&quot;</span><span class="p">;</span>
+<span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">history</span><span class="p">,</span> <span class="nx">Routes</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;./router&quot;</span><span class="p">;</span>
+</span><span class="kr">import</span> <span class="nx">client</span> <span class="nx">from</span> <span class="s2">&quot;./graphql/apollo&quot;</span><span class="p">;</span>
+
+<span class="kr">import</span> <span class="s2">&quot;./index.css&quot;</span><span class="p">;</span>
+
+<span class="kd">function</span> <span class="nx">App</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="nt">ApolloProvider</span> <span class="na">client</span><span class="o">=</span><span class="p">{</span><span class="nx">client</span><span class="p">}&gt;</span>
+      <span class="p">&lt;</span><span class="nt">AuthProvider</span><span class="p">&gt;</span>
+<span class="hll">        <span class="p">&lt;</span><span class="nt">Router</span> <span class="na">history</span><span class="o">=</span><span class="p">{</span><span class="nx">history</span><span class="p">}&gt;</span>
+</span>          <span class="p">&lt;</span><span class="nt">Routes</span> <span class="p">/&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">Router</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">AuthProvider</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">ApolloProvider</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="nx">ReactDOM</span><span class="p">.</span><span class="nx">render</span><span class="p">(&lt;</span><span class="nt">App</span> <span class="p">/&gt;,</span> <span class="nb">document</span><span class="p">.</span><span class="nx">getElementById</span><span class="p">(</span><span class="s2">&quot;root&quot;</span><span class="p">));</span>
+</pre></div>
+
+<p>Now we can add a new link to handle API errors resulting from expired JWTs. Apollo Client has a built-in <code>onError</code> link that we can use to intercept both GraphQL and network errors in a response to do custom handling. To use this link, we’ll add an <code>authErrorLink.js</code> file in the <code>client/src/graphql/links</code> directory that we created in the last section and import <code>onError</code> from Apollo Client. Then we’ll set up the callback passed into the <code>onError</code> link to check for a GraphQL error with a <code>Not Authorised!</code> message, and if that error is present, we’ll check for an expired JWT, and then redirect the user to the <code>/login</code> route if needed:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/links/authErrorLink.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">onError</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client/link/error&quot;</span><span class="p">;</span>
+
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">history</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;../../router&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">authErrorLink</span> <span class="o">=</span> <span class="nx">onError</span><span class="p">(({</span> <span class="nx">graphQLErrors</span> <span class="p">})</span> <span class="p">=&gt;</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span><span class="nx">graphQLErrors</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kr">const</span> <span class="nx">notAuthorizedError</span> <span class="o">=</span> <span class="nx">graphQLErrors</span><span class="p">.</span><span class="nx">find</span><span class="p">(</span>
+      <span class="nx">error</span> <span class="p">=&gt;</span> <span class="nx">error</span><span class="p">.</span><span class="nx">message</span> <span class="o">===</span> <span class="s2">&quot;Not Authorised!&quot;</span>
+    <span class="p">);</span>
+
+    <span class="k">if</span> <span class="p">(</span><span class="nx">notAuthorizedError</span><span class="p">)</span> <span class="p">{</span>
+      <span class="kr">const</span> <span class="nx">expiresAt</span> <span class="o">=</span> <span class="nx">localStorage</span><span class="p">.</span><span class="nx">getItem</span><span class="p">(</span><span class="s2">&quot;token_expires_at&quot;</span><span class="p">);</span>
+      <span class="kr">const</span> <span class="nx">isAuthenticated</span> <span class="o">=</span> <span class="nx">expiresAt</span>
+        <span class="o">?</span> <span class="k">new</span> <span class="nb">Date</span><span class="p">().</span><span class="nx">getTime</span><span class="p">()</span> <span class="o">&lt;</span> <span class="nx">expiresAt</span>
+        <span class="o">:</span> <span class="kc">false</span><span class="p">;</span>
+
+      <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">isAuthenticated</span><span class="p">)</span> <span class="p">{</span>
+        <span class="nx">history</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="s2">&quot;/login&quot;</span><span class="p">);</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">});</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">authErrorLink</span><span class="p">;</span>
+</pre></div>
+
+<p>Lastly, we can insert the new error link before the terminating link by concatenating the <code>httpLink</code> onto the <code>authErrorLink</code> by calling the <code>concat</code> method on the link object:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/apollo.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="hll"><span class="kr">import</span> <span class="nx">authErrorLink</span> <span class="nx">from</span> <span class="s2">&quot;./links/authErrorLink&quot;</span><span class="p">;</span>
+</span><span class="c1">// ...</span>
+
+<span class="kr">const</span> <span class="nx">link</span> <span class="o">=</span> <span class="nx">split</span><span class="p">(</span>
+  <span class="p">({</span> <span class="nx">query</span> <span class="p">})</span> <span class="p">=&gt;</span> <span class="p">{</span>
+    <span class="kr">const</span> <span class="nx">definition</span> <span class="o">=</span> <span class="nx">getMainDefinition</span><span class="p">(</span><span class="nx">query</span><span class="p">);</span>
+    <span class="k">return</span> <span class="p">(</span>
+      <span class="nx">definition</span><span class="p">.</span><span class="nx">kind</span> <span class="o">===</span> <span class="s2">&quot;OperationDefinition&quot;</span> <span class="o">&amp;&amp;</span>
+      <span class="nx">definition</span><span class="p">.</span><span class="nx">operation</span> <span class="o">===</span> <span class="s2">&quot;subscription&quot;</span>
+    <span class="p">);</span>
+  <span class="p">},</span>
+  <span class="nx">wsLink</span><span class="p">,</span>
+<span class="hll">  <span class="nx">authErrorLink</span><span class="p">.</span><span class="nx">concat</span><span class="p">(</span><span class="nx">httpLink</span><span class="p">)</span>
+</span><span class="p">);</span>
+
+<span class="c1">// ...</span>
+</pre></div>
+
+<p>Note that we don’t need to concatenate the <code>authErrorLink</code> and the <code>wsLink</code> together because no protected fields are queryable through the subscription root operation type. To test out the new link, try temporarily shortening the expiration time of the JWT created in the <code>login</code> method in the <code>JsonServerApi</code> data source to be a few seconds, then try sending a mutation from the React application user interface after the JWT has expired, and confirm that the user is redirected to the login page.</p>
+<h2 id="add-a-subscription-operation-to-the-client">Add a Subscription Operation to the Client</h2>
+<p>Now that our GraphQL API has a <code>Subscription</code> type with a <code>reviewAdded</code> field, we have a pub/sub implementation in place, and our client is capable of sending subscription operations to the WebSocket endpoint, we can finally update the <code>Book</code> page component to use a subscription for new reviews. Let’s create a new <code>subscriptions.js</code> file in <code>client/src/graphql</code> to house all of our subscriptions operations and then add the following code to that file:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/subscriptions.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">fullReview</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;./fragments&quot;</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="kr">const</span> <span class="nx">ReviewAdded</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  subscription ReviewAdded($bookId: ID!) {</span>
+<span class="sb">    reviewAdded(bookId: $bookId) {</span>
+<span class="sb">      ...fullReview</span>
+<span class="sb">    }</span>
+<span class="sb">  }</span>
+<span class="sb">  </span><span class="si">${</span><span class="nx">fullReview</span><span class="si">}</span><span class="sb"></span>
+<span class="sb">`</span><span class="p">;</span>
+</pre></div>
+
+<p>There are two different ways that we can use this subscription operation with Apollo Client. The first is to use the <code>useSubscription</code> hook to initiate the connection with the server. The second is to use the <code>subscribeToMore</code> function returned from a query operation (much like the <code>fetchMore</code> function we previously used for pagination). The <code>subscribeToMore</code> function will be the right choice for us because we want to subscribe to new review updates for a book after the initial <code>GetBook</code> operation runs. To set up the subscription, we’ll destructure <code>subscribeToMore</code> from the <code>GetBook</code> query result and call that function in the <code>useEffect</code> hook so that the subscription begins once the component mounts:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/pages/Book/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">useEffect</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react&quot;</span><span class="p">;</span>
+</span><span class="c1">// ...</span>
+
+<span class="c1">// ...</span>
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">ReviewAdded</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;../../graphql/subscriptions&quot;</span><span class="p">;</span>
+<span class="c1">// ...</span>
+
+<span class="kd">function</span> <span class="nx">Book</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+
+<span class="hll">  <span class="kr">const</span> <span class="p">{</span> <span class="nx">data</span><span class="p">,</span> <span class="nx">error</span><span class="p">,</span> <span class="nx">fetchMore</span><span class="p">,</span> <span class="nx">loading</span><span class="p">,</span> <span class="nx">subscribeToMore</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">useQuery</span><span class="p">(</span>
+</span><span class="hll">    <span class="nx">GetBook</span><span class="p">,</span>
+</span><span class="hll">    <span class="p">{</span>
+</span>      <span class="nx">variables</span><span class="o">:</span> <span class="p">{</span> <span class="nx">id</span><span class="p">,</span> <span class="nx">reviewsLimit</span><span class="p">,</span> <span class="nx">reviewsPage</span><span class="o">:</span> <span class="mi">1</span> <span class="p">},</span>
+      <span class="nx">fetchPolicy</span><span class="o">:</span> <span class="s2">&quot;cache-and-network&quot;</span><span class="p">,</span>
+      <span class="nx">nextFetchPolicy</span><span class="o">:</span> <span class="s2">&quot;cache-first&quot;</span>
+<span class="hll">    <span class="p">}</span>
+</span><span class="hll">  <span class="p">);</span>
+</span>  
+  <span class="c1">// ...</span>
+  
+<span class="hll">  <span class="nx">useEffect</span><span class="p">(()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">unsubscribe</span> <span class="o">=</span> <span class="nx">subscribeToMore</span><span class="p">({</span>
+</span><span class="hll">      <span class="nb">document</span><span class="o">:</span> <span class="nx">ReviewAdded</span><span class="p">,</span>
+</span><span class="hll">      <span class="nx">variables</span><span class="o">:</span> <span class="p">{</span> <span class="nx">bookId</span><span class="o">:</span> <span class="nx">id</span> <span class="p">}</span>
+</span><span class="hll">    <span class="p">});</span>
+</span><span class="hll">    <span class="k">return</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="nx">unsubscribe</span><span class="p">();</span>
+</span><span class="hll">  <span class="p">});</span>
+</span><span class="hll">  
+</span>  <span class="c1">// ...</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>As we receive new review data from the server, we’ll need to manually update the review list for the book too. To make that happen, we’ll create a <code>updateAddNewReviewToList</code> function in <code>updateQueries.js</code>. This function will take the previous state of the book and the new review object and then merge that review data at the beginning of the list in the <code>reviews</code> field:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/utils/updateQueries.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="hll"><span class="kr">export</span> <span class="kd">function</span> <span class="nx">updateAddNewReviewToList</span><span class="p">(</span><span class="nx">previousResult</span><span class="p">,</span> <span class="nx">subscriptionData</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">  <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">subscriptionData</span><span class="p">.</span><span class="nx">data</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">return</span> <span class="nx">previousResult</span><span class="p">;</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">  <span class="kr">const</span> <span class="nx">newReview</span> <span class="o">=</span> <span class="nx">subscriptionData</span><span class="p">.</span><span class="nx">data</span><span class="p">.</span><span class="nx">reviewAdded</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="hll">  <span class="k">return</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">book</span><span class="o">:</span> <span class="p">{</span>
+</span><span class="hll">      <span class="p">...</span><span class="nx">previousResult</span><span class="p">.</span><span class="nx">book</span><span class="p">,</span>
+</span><span class="hll">      <span class="nx">reviews</span><span class="o">:</span> <span class="p">{</span>
+</span><span class="hll">        <span class="nx">__typename</span><span class="o">:</span> <span class="nx">previousResult</span><span class="p">.</span><span class="nx">book</span><span class="p">.</span><span class="nx">reviews</span><span class="p">.</span><span class="nx">__typename</span><span class="p">,</span>
+</span><span class="hll">        <span class="nx">results</span><span class="o">:</span> <span class="p">[</span><span class="nx">newReview</span><span class="p">,</span> <span class="p">...</span><span class="nx">previousResult</span><span class="p">.</span><span class="nx">book</span><span class="p">.</span><span class="nx">reviews</span><span class="p">.</span><span class="nx">results</span><span class="p">],</span>
+</span><span class="hll">        <span class="nx">pageInfo</span><span class="o">:</span> <span class="nx">previousResult</span><span class="p">.</span><span class="nx">book</span><span class="p">.</span><span class="nx">reviews</span><span class="p">.</span><span class="nx">pageInfo</span>
+</span><span class="hll">      <span class="p">}</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">  <span class="p">};</span>
+</span><span class="hll"><span class="p">}</span>
+</span><span class="hll">
+</span><span class="c1">// ...</span>
+</pre></div>
+
+<p>Now we’ll import the <code>updateViewerHasInLibrary</code> function into the <code>Book</code> page component file and use it with the <code>updateQuery</code> property passed into the object argument of the <code>subscribeToMore</code> function:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/pages/Book/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+<span class="hll"><span class="kr">import</span> <span class="p">{</span>
+</span><span class="hll">  <span class="nx">updateAddNewReviewToList</span><span class="p">,</span>
+</span><span class="hll">  <span class="nx">updateViewerHasInLibrary</span>
+</span><span class="hll"><span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;../../utils/updateQueries&quot;</span><span class="p">;</span>
+</span><span class="c1">// ...</span>
+
+<span class="kd">function</span> <span class="nx">Book</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  
+  <span class="nx">useEffect</span><span class="p">(()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+    <span class="kr">const</span> <span class="nx">unsubscribe</span> <span class="o">=</span> <span class="nx">subscribeToMore</span><span class="p">({</span>
+      <span class="nb">document</span><span class="o">:</span> <span class="nx">ReviewAdded</span><span class="p">,</span>
+<span class="hll">      <span class="nx">variables</span><span class="o">:</span> <span class="p">{</span> <span class="nx">bookId</span><span class="o">:</span> <span class="nx">id</span> <span class="p">},</span>
+</span><span class="hll">      <span class="nx">updateQuery</span><span class="o">:</span> <span class="p">(</span><span class="nx">previousResult</span><span class="p">,</span> <span class="p">{</span> <span class="nx">subscriptionData</span> <span class="p">})</span> <span class="p">=&gt;</span>
+</span><span class="hll">        <span class="nx">updateAddNewReviewToList</span><span class="p">(</span><span class="nx">previousResult</span><span class="p">,</span> <span class="nx">subscriptionData</span><span class="p">)</span>
+</span>    <span class="p">});</span>
+    <span class="k">return</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="nx">unsubscribe</span><span class="p">();</span>
+  <span class="p">});</span>
+
+  <span class="kd">let</span> <span class="nx">content</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+  
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>With this code in place, try adding a new review in one browser tab with the relevant book page opened in another browser tab. The new review will now be automatically added to the page in real-time and without refreshing.</p>
+<h2 id="summary">Summary</h2>
+<p>Congratulations! You made it to the end of our extensive journey through the inner workings of GraphQL and Apollo. The final chapter covered off how to handle subscription operations on both the server and client sides, which was the only root type operation we hadn’t yet explored. We also saw how an Apollo Link can be used as a powerful tool for processing GraphQL requests before they leave the client as well as the responses that are returned from the server. If you’re eager to continue GraphQL learning journey from here, be sure to check out Appendix A for a curated list of additional resources.</p>
+<footer>
+<p class="copyright">Copyright © 2021 <a href="https://8bit.press/">8-Bit Press Inc.</a> All rights reserved.</p>
+</footer>
+</div>
+</div>
+<script>
+(function () {
+  "use strict";
+
+  const chapter = document.getElementById("chapter");
+
+  // Set width of fixed-position chapter navigation based on parent
+  function setChapterNavWidth() {
+    const chapterNav = document.getElementsByClassName("chapter-nav")[0];
+    let { width: chapterWidth } = chapter.getBoundingClientRect();
+    chapterNav.setAttribute(
+      "style",
+      `width: ${chapterWidth >= 960 ? chapterWidth * 0.3 + 36 + "px" : "100%"}`
+    );
+  }
+
+  setChapterNavWidth();
+  window.addEventListener("resize", setChapterNavWidth);
+
+  // Open and close the book navigation in the masthead
+  const openMastheadButton = document.getElementById("masthead-open");
+  const closeMastheadButton = document.getElementById("masthead-close");
+  const masthead = document.getElementById("masthead");
+
+  openMastheadButton.addEventListener("click", function (event) {
+    event.stopPropagation();
+    masthead.style.marginLeft = "0px";
+  });
+
+  closeMastheadButton.addEventListener("click", function () {
+    masthead.style.marginLeft = "-100%";
+  });
+
+  chapter.addEventListener("click", function () {
+    if (masthead.style.marginLeft === "0px") {
+      masthead.style.marginLeft = "-100%";
+    }
+  });
+
+  // Add "Copy" button to code snippets
+  // Reference: https://tomspencer.dev/blog/2018/09/14/adding-click-to-copy-buttons-to-a-hugo-powered-blog/
+  if (!document.queryCommandSupported("copy")) {
+    return;
+  }
+
+  function flashCopyMessage(el, msg) {
+    el.textContent = msg;
+    setTimeout(function () {
+      el.textContent = "Copy";
+    }, 1000);
+  }
+
+  function selectText(node) {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return selection;
+  }
+
+  function addCopyButton(containerEl) {
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "highlight-copy-btn";
+    copyBtn.textContent = "Copy";
+
+    var codeEl = containerEl.firstElementChild;
+    copyBtn.addEventListener("click", function () {
+      try {
+        const selection = selectText(codeEl);
+        document.execCommand("copy");
+        selection.removeAllRanges();
+
+        flashCopyMessage(copyBtn, "Copied!");
+      } catch (e) {
+        console && console.log(e);
+        flashCopyMessage(copyBtn, "Failed :'(");
+      }
+    });
+
+    containerEl.appendChild(copyBtn);
+  }
+
+  // Add copy button to code blocks
+  var highlightBlocks = document.getElementsByClassName("highlight");
+  Array.prototype.forEach.call(highlightBlocks, addCopyButton);
+})();
+</script>
+</body>
+</html>

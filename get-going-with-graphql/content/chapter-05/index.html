@@ -1,0 +1,1141 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US" xml:lang="en-US">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="../../images/favicon.ico" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Mandi Wise" />
+  <title>Get Going with GraphQL</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <link rel="stylesheet" href="../../css/web.min.css" />
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<div id="masthead">
+<div class="close-button-wrapper">
+<button id="masthead-close" type="button"><span>Close</span></button>
+</div>
+<header id="title-block-header">
+<h1 class="title">Get Going with GraphQL</h1>
+<p class="subtitle">Learn How to Build JavaScript Applications with Apollo Server and Apollo Client</p>
+<p class="author">Mandi Wise</p>
+</header>
+<nav class="book-nav">
+<ol class="front-matter-content">
+<li><a href="../preface/index.html">Preface</a></li>
+</ol>
+<ol class="main-matter-content">
+<li><a href="../chapter-01/index.html">Up and Running with GraphQL and Apollo Server</a></li>
+<li><a href="../chapter-02/index.html">More on Queries</a></li>
+<li><a href="../chapter-03/index.html">Mutating Data</a></li>
+<li><a href="../chapter-04/index.html">Pagination and Search Queries</a></li>
+<li><a href="../chapter-05/index.html">Documentation, Custom Scalars, and Custom Directives</a></li>
+<li><a href="../chapter-06/index.html">Authentication and Authorization</a></li>
+<li><a href="../chapter-07/index.html">React App Set-up</a></li>
+<li><a href="../chapter-08/index.html">Apollo Client with User Authentication</a></li>
+<li><a href="../chapter-09/index.html">Pagination, Mutations, and the Apollo Client Cache</a></li>
+<li><a href="../chapter-10/index.html">Real-time Updates with Subscriptions</a></li>
+</ol>
+<ol class="back-matter-content">
+<li><a href="../appendix-a/index.html">Appendix A</a></li>
+<li><a href="../about-the-author/index.html">About the Author</a></li>
+<li><a href="../changelog/index.html">Changelog</a></li>
+</ol>
+<img src="../../images/8bp-logo-white.svg" class="logo" alt="8-Bit Press Inc. logo" />
+</nav>
+</div>
+<div id="chapter">
+<div class="chapter-nav">
+<nav id="TOC" role="doc-toc">
+<button id="masthead-open" type="button"><span>Book Navigation</span></button>
+<h2 id="toc-title">Contents</h2>
+<ul>
+<li><a href="#documentation-custom-scalars-and-custom-directives">Chapter 5: Documentation, Custom Scalars, and Custom Directives</a>
+<ul>
+<li><a href="#best-practice-document-the-schema">Best Practice: Document the Schema</a></li>
+<li><a href="#add-a-custom-datetime-scalar">Add a Custom <code>DateTime</code> Scalar</a></li>
+<li><a href="#add-a-rating-scalar">Add a <code>Rating</code> Scalar</a></li>
+<li><a href="#directives-in-graphql">Directives in GraphQL</a></li>
+<li><a href="#add-an-unique-custom-directive">Add an <code>@unique</code> Custom Directive</a></li>
+<li><a href="#summary">Summary</a></li>
+</ul></li>
+</ul>
+</nav>
+</div>
+<div class="content">
+<h1 id="documentation-custom-scalars-and-custom-directives">Chapter 5: Documentation, Custom Scalars, and Custom Directives</h1>
+<div class="boxout">
+<p>In this chapter, we will:</p>
+<ul>
+<li>Document the type and fields in a GraphQL schema</li>
+<li>Add custom <code>DateTime</code> and <code>Rating</code> Scalar types and use them in the schema</li>
+<li>Add a custom schema directive to enforce unique values for fields</li>
+</ul>
+</div>
+<h2 id="best-practice-document-the-schema">Best Practice: Document the Schema</h2>
+<p>Throughout this chapter, we’re going to learn how we can enhance the overall expressiveness of the substantial schema we’ve already assembled. Our first step will be adding documentation to the types and fields in the schema. According to the current specification, documentation is a first-class feature of GraphQL type systems.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> To that end, GraphQL makes it possible to document the types directly in our schema alongside the type definitions themselves using <em>descriptions</em>. A description is written using Markdown syntax, defined in <em>BlockString</em> format, and placed immediately before the type, field, or argument that it describes.</p>
+<p>The specification recommends that all GraphQL types, fields, and arguments provide a description unless it’s completely self-evident what they are. Before adding anything else to our schema, it would be a good idea to document what we’ve already created so other developers will understand what’s under the hood.</p>
+<p>The BlockString descriptions can be formatted as follows:</p>
+<div class="highlight"><pre><span></span>&quot;&quot;&quot;
+This is a
+multiline
+description.
+&quot;&quot;&quot;
+
+&quot;This is a single-line description.&quot;
+</pre></div>
+
+<p>We’ll update all of our API’s type definitions in <code>typeDefs.js</code> to include this style of documentation now. Once we’ve finished adding descriptions to the various types and fields, we’ll be able to view them in the user interface of a GraphQL IDE such as Explorer too. First, we’ll add a description for the <code>Genre</code> Enum type:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  Literary genres that classify books.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  enum Genre {</span>
+<span class="sb">    # ...</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>If we wanted to, we could document each value in the Enum with a description as well, but the genres are relatively self-explanatory so we’ll skip this for now. Next, we’ll document the rest of the Enum types:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  Sorting options for authors.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  enum AuthorOrderBy {</span>
+<span class="sb">    NAME_ASC</span>
+<span class="sb">    NAME_DESC</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  Sorting options for books.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  enum BookOrderBy {</span>
+<span class="sb">    TITLE_ASC</span>
+<span class="sb">    TITLE_DESC</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  Sorting options for books in a user&#39;s library.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  enum LibraryOrderBy {</span>
+<span class="sb">    ADDED_ON_ASC</span>
+<span class="sb">    ADDED_ON_DESC</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  Sorting options for reviews.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  enum ReviewOrderBy {</span>
+<span class="sb">    REVIEWED_ON_ASC</span>
+<span class="sb">    REVIEWED_ON_DESC</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  Sorting options for search results.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  enum SearchOrderBy {</span>
+<span class="sb">    RESULT_ASC</span>
+<span class="sb">    RESULT_DESC</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>Now we’ll document the abstract types:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  Specifies fields shared by people (including authors and users).</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  interface Person {</span>
+<span class="hll"><span class="sb">    &quot;The unique ID of the person.&quot;</span>
+</span><span class="sb">    id: ID!</span>
+<span class="hll"><span class="sb">    &quot;The full name of the person.&quot;</span>
+</span><span class="sb">    name: String!</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  Types that can be returned from book-related search results.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  union BookResult = Book | Author</span>
+
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>And all of the Object types:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  An author is a person who wrote one or more books.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  type Author implements Person {</span>
+<span class="hll"><span class="sb">    &quot;The unique ID of the author.&quot;</span>
+</span><span class="sb">    id: ID!</span>
+<span class="hll"><span class="sb">    &quot;Books that were authored or co-authored by this person.&quot;</span>
+</span><span class="sb">    books: [Book]</span>
+<span class="hll"><span class="sb">    &quot;The full name of the author.&quot;</span>
+</span><span class="sb">    name: String!</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  A list of author results with pagination information.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  type Authors {</span>
+<span class="hll"><span class="sb">    &quot;A list of author results.&quot;</span>
+</span><span class="sb">    results: [Author]</span>
+<span class="hll"><span class="sb">    &quot;Information to assist with pagination.&quot;</span>
+</span><span class="sb">    pageInfo: PageInfo</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  A written work that can be attributed to one or more authors and can be reviewed by users.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  type Book {</span>
+<span class="hll"><span class="sb">    &quot;The unique ID of the book.&quot;</span>
+</span><span class="sb">    id: ID!</span>
+<span class="hll"><span class="sb">    &quot;The author(s) who wrote the books&quot;</span>
+</span><span class="sb">    authors: [Author]</span>
+<span class="hll"><span class="sb">    &quot;The URL of the book&#39;s cover image.&quot;</span>
+</span><span class="sb">    cover: String</span>
+<span class="hll"><span class="sb">    &quot;A literary genre to which the book can be assigned.&quot;</span>
+</span><span class="sb">    genre: Genre</span>
+<span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">    User-submitted reviews of the book.</span>
+</span><span class="hll">
+</span><span class="hll"><span class="sb">    Default sort order is REVIEWED_ON_DESC.</span>
+</span><span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="sb">    reviews(limit: Int = 20, orderBy: ReviewOrderBy, page: Int): Reviews</span>
+<span class="hll"><span class="sb">    &quot;A brief description of the book&#39;s content.&quot;</span>
+</span><span class="sb">    summary: String</span>
+<span class="hll"><span class="sb">    &quot;The title of the book.&quot;</span>
+</span><span class="sb">    title: String!</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  A list of book results with pagination information.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  type Books {</span>
+<span class="hll"><span class="sb">    &quot;A list of book results.&quot;</span>
+</span><span class="sb">    results: [Book]</span>
+<span class="hll"><span class="sb">    &quot;Information to assist with pagination.&quot;</span>
+</span><span class="sb">    pageInfo: PageInfo</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  Contains information about the current page of results.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  type PageInfo {</span>
+<span class="hll"><span class="sb">    &quot;Whether there are items to retrieve on a subsequent page.&quot;</span>
+</span><span class="sb">    hasNextPage: Boolean</span>
+<span class="hll"><span class="sb">    &quot;Whether there are items to retrieve on a preceding page.&quot;</span>
+</span><span class="sb">    hasPrevPage: Boolean</span>
+<span class="hll"><span class="sb">    &quot;The current page number.&quot;</span>
+</span><span class="sb">    page: Int</span>
+<span class="hll"><span class="sb">    &quot;The number of items retrieved per page.&quot;</span>
+</span><span class="sb">    perPage: Int</span>
+<span class="hll"><span class="sb">    &quot;The total item count across all pages.&quot;</span>
+</span><span class="sb">    totalCount: Int</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  A user-submitted assessment of a book that may include a numerical rating.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  type Review {</span>
+<span class="hll"><span class="sb">    &quot;The unique ID of the review.&quot;</span>
+</span><span class="sb">    id: ID!</span>
+<span class="hll"><span class="sb">    &quot;The book to which the review applies.&quot;</span>
+</span><span class="sb">    book: Book</span>
+<span class="hll"><span class="sb">    &quot;The user&#39;s integer-based rating of the book (from 1 to 5).&quot;</span>
+</span><span class="sb">    rating: Int!</span>
+<span class="hll"><span class="sb">    &quot;The date and time the review was created.&quot;</span>
+</span><span class="sb">    reviewedOn: String</span>
+<span class="hll"><span class="sb">    &quot;The user who submitted the book review.&quot;</span>
+</span><span class="sb">    reviewer: User!</span>
+<span class="hll"><span class="sb">    &quot;The text-based content of the review.&quot;</span>
+</span><span class="sb">    text: String</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  A list of review results with pagination information.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  type Reviews {</span>
+<span class="hll"><span class="sb">    &quot;A list of review results.&quot;</span>
+</span><span class="sb">    results: [Review]</span>
+<span class="hll"><span class="sb">    &quot;Information to assist with pagination.&quot;</span>
+</span><span class="sb">    pageInfo: PageInfo</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  A user account provides authentication and library details.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  type User implements Person {</span>
+<span class="hll"><span class="sb">    &quot;The unique ID of the user.&quot;</span>
+</span><span class="sb">    id: ID!</span>
+<span class="hll"><span class="sb">    &quot;The email address of the user (must be unique).&quot;</span>
+</span><span class="sb">    email: String!</span>
+<span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">    A list of books the user has added to their library.</span>
+</span><span class="hll">
+</span><span class="hll"><span class="sb">    Default sort order is ADDED_ON_DESC.</span>
+</span><span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="sb">    library(limit: Int = 20, orderBy: LibraryOrderBy, page: Int): Books</span>
+<span class="hll"><span class="sb">    &quot;The full name of the user.&quot;</span>
+</span><span class="sb">    name: String!</span>
+<span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">    A list of book reviews created by the user.</span>
+</span><span class="hll">
+</span><span class="hll"><span class="sb">    Default sort order is REVIEWED_ON_DESC.</span>
+</span><span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="sb">    reviews(limit: Int = 20, orderBy: ReviewOrderBy, page: Int): Reviews</span>
+<span class="hll"><span class="sb">    &quot;The user&#39;s chosen username (must be unique).&quot;</span>
+</span><span class="sb">    username: String!</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>In the descriptions for the paginated fields belonging to <code>Book</code> and <code>User</code> above, we indicate what the default sort order is to compensate partially for the limitation on using Enum types with internal values as default arguments for fields (see Chapter 4 for further explanation). Next, we’ll add documentation for the Input Object types:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  Provides data to create a book.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  input CreateBookInput {</span>
+<span class="hll"><span class="sb">    &quot;The IDs of the authors who wrote the book.&quot;</span>
+</span><span class="sb">    authorIds: [ID]</span>
+<span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">    The URL of the book&#39;s cover image. Covers available via the Open Library Covers API:</span>
+</span><span class="hll">
+</span><span class="hll"><span class="sb">    https://openlibrary.org/dev/docs/api/covers</span>
+</span><span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="sb">    cover: String</span>
+<span class="hll"><span class="sb">    &quot;A literary genre to which the book can be assigned.&quot;</span>
+</span><span class="sb">    genre: Genre</span>
+<span class="hll"><span class="sb">    &quot;A short summary of the book&#39;s content.&quot;</span>
+</span><span class="sb">    summary: String</span>
+<span class="hll"><span class="sb">    &quot;The title of the book.&quot;</span>
+</span><span class="sb">    title: String!</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  Provides data to create a review.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  input CreateReviewInput {</span>
+<span class="hll"><span class="sb">    &quot;The unique ID of the book a user is reviewing.&quot;</span>
+</span><span class="sb">    bookId: ID!</span>
+<span class="hll"><span class="sb">    &quot;The user&#39;s integer-based rating of the book (from 1 to 5).&quot;</span>
+</span><span class="sb">    rating: Int!</span>
+<span class="hll"><span class="sb">    &quot;The ID of the user submitting the review.&quot;</span>
+</span><span class="sb">    reviewerId: ID!</span>
+<span class="hll"><span class="sb">    &quot;The text-based content of the review.&quot;</span>
+</span><span class="sb">    text: String</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  Provides data to create a user.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  input SignUpInput {</span>
+<span class="hll"><span class="sb">    &quot;The email address of the user (must be unique).&quot;</span>
+</span><span class="sb">    email: String!</span>
+<span class="hll"><span class="sb">    &quot;The full name of the user.&quot;</span>
+</span><span class="sb">    name: String!</span>
+<span class="hll"><span class="sb">    &quot;The user&#39;s chosen username (must be unique).&quot;</span>
+</span><span class="sb">    username: String!</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  Provides data to add or remove books from a user&#39;s library.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  input UpdateLibraryBooksInput {</span>
+<span class="hll"><span class="sb">    &quot;The IDs of the books to add or remove from the user&#39;s library.&quot;</span>
+</span><span class="sb">    bookIds: [ID!]!</span>
+<span class="hll"><span class="sb">    &quot;The ID of the user whose library should be updated.&quot;</span>
+</span><span class="sb">    userId: ID!</span>
+<span class="sb">  }</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  Provides data to update a review.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="sb">  input UpdateReviewInput {</span>
+<span class="hll"><span class="sb">    &quot;The unique ID of the review a user is updating.&quot;</span>
+</span><span class="sb">    id: ID!</span>
+<span class="hll"><span class="sb">    &quot;The user&#39;s integer-based rating of the book (from 1 to 5).&quot;</span>
+</span><span class="sb">    rating: Int!</span>
+<span class="hll"><span class="sb">    &quot;The text-based content of the review.&quot;</span>
+</span><span class="sb">    text: String</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>Now we’ll document all of the fields on the root <code>Query</code> type:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="sb">  type Query {</span>
+<span class="hll"><span class="sb">    &quot;Retrieves a single author by ID.&quot;</span>
+</span><span class="sb">    author(id: ID!): Author</span>
+<span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">    Retrieves a list of authors with pagination information.</span>
+</span><span class="hll">
+</span><span class="hll"><span class="sb">    Default sort order is NAME_ASC.</span>
+</span><span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="sb">    authors(limit: Int = 20, orderBy: AuthorOrderBy, page: Int): Authors</span>
+<span class="hll"><span class="sb">    &quot;Retrieves a single book by ID.&quot;</span>
+</span><span class="sb">    book(id: ID!): Book</span>
+<span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">    Retrieves a list of books with pagination information.</span>
+</span><span class="hll">
+</span><span class="hll"><span class="sb">    Default sort order is TITLE_ASC.</span>
+</span><span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="sb">    books(limit: Int = 20, orderBy: BookOrderBy, page: Int): Books</span>
+<span class="hll"><span class="sb">    &quot;Retrieves a single book by ID.&quot;</span>
+</span><span class="sb">    review(id: ID!): Review</span>
+<span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">    Performs a search of book titles and author names.</span>
+</span><span class="hll">
+</span><span class="hll"><span class="sb">    Default sort order is RESULTS_ASC.</span>
+</span><span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="sb">    searchBooks(</span>
+<span class="sb">      exact: Boolean = false</span>
+<span class="sb">      orderBy: SearchOrderBy</span>
+<span class="sb">      query: String!</span>
+<span class="sb">    ): [BookResult]</span>
+<span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">    Performs a search of author and user names.</span>
+</span><span class="hll">
+</span><span class="hll"><span class="sb">    Default sort order is RESULTS_ASC.</span>
+</span><span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="sb">    searchPeople(</span>
+<span class="sb">      exact: Boolean = false</span>
+<span class="sb">      orderBy: SearchOrderBy</span>
+<span class="sb">      query: String!</span>
+<span class="sb">    ): [Person]</span>
+<span class="hll"><span class="sb">    &quot;Retrieves a single user by username.&quot;</span>
+</span><span class="sb">    user(username: String!): User</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>And lastly, the root <code>Mutation</code> type:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="sb">  type Mutation {</span>
+<span class="hll"><span class="sb">    &quot;Adds books to user&#39;s library.&quot;</span>
+</span><span class="sb">    addBooksToLibrary(input: UpdateLibraryBooksInput!): User!</span>
+<span class="hll"><span class="sb">    &quot;Creates a new author.&quot;</span>
+</span><span class="sb">    createAuthor(name: String!): Author!</span>
+<span class="hll"><span class="sb">    &quot;Creates a new book.&quot;</span>
+</span><span class="sb">    createBook(input: CreateBookInput!): Book!</span>
+<span class="hll"><span class="sb">    &quot;Creates a new review.&quot;</span>
+</span><span class="sb">    createReview(input: CreateReviewInput!): Review!</span>
+<span class="hll"><span class="sb">    &quot;Deletes a review.&quot;</span>
+</span><span class="sb">    deleteReview(id: ID!): ID!</span>
+<span class="hll"><span class="sb">    &quot;Remove books currently in a user&#39;s library.&quot;</span>
+</span><span class="sb">    removeBooksFromLibrary(input: UpdateLibraryBooksInput!): User!</span>
+<span class="hll"><span class="sb">    &quot;Creates a new user.&quot;</span>
+</span><span class="sb">    signUp(input: SignUpInput!): User!</span>
+<span class="hll"><span class="sb">    &quot;Updates a review.&quot;</span>
+</span><span class="sb">    updateReview(input: UpdateReviewInput!): Review!</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>After saving the updated <code>typeDefs.js</code> file, the schema documentation will be visible in Explorer:</p>
+<p><img src="../../images/screenshots/apollo-explorer-documentation.png" alt="Schema documentation visible in Apollo Studio Explorer" /><br />
+</p>
+<h2 id="add-a-custom-datetime-scalar">Add a Custom <code>DateTime</code> Scalar</h2>
+<p>So far, we’ve put GraphQL’s built-in <code>Int</code>, <code>String</code>, <code>Boolean</code>, and <code>ID</code> Scalar types to good use, but occasionally it would be useful to have a more purpose-built Scalar type at hand to use as an output type for a field. For instance, while a <code>String</code> type certainly works as an output type for the <code>Review</code> type’s <code>reviewedOn</code> field, it would be helpful if there was further validation wired directly into this type to ensure that the string value is in a valid ISO 8601 format. Luckily, we can create a custom Scalar type for our GraphQL schema that we’ll define as <code>DateTime</code>. The <code>DateTime</code> type will provide an extra measure of certainty for client applications that they will receive a date string in this precise format. It may also be used to validate argument values submitted with operations from the client.</p>
+<p>The process for adding a custom Scalar type mirrors the workflow that we’ve already seen—that is, we will declare a type in the schema and then add a resolver so that GraphQL knows what to do with that type. To begin, we’ll add the following line to the top of the <code>typeDefs.js</code> file and update the <code>reviewedOn</code> field of the <code>Review</code> type to use the new Scalar type:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  An ISO 8601-encoded UTC date string.</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  scalar DateTime</span>
+</span><span class="hll">
+</span><span class="sb">  # ...</span>
+
+<span class="sb">  &quot;&quot;&quot;</span>
+<span class="sb">  A user-submitted assessment of a book that may include a numerical rating.</span>
+<span class="sb">  &quot;&quot;&quot;</span>
+<span class="sb">  type Review {</span>
+<span class="sb">    # ...</span>
+<span class="sb">    &quot;The date and time the review was created.&quot;</span>
+<span class="hll"><span class="sb">    reviewedOn: DateTime!</span>
+</span><span class="sb">    # ...</span>
+<span class="sb">  }</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>Next, we need to define the date string-validating behavior of the <code>DateTime</code> type by instantiating a <code>GraphQLScalarType</code> from the <code>graphql</code> package. We’ll organize this code in a <code>DateTimeType.js</code> file in a new subdirectory called <code>scalars</code> in <code>server/src/graphql</code>. We’ll also need to install another package in <code>server</code> to assist with date string validation:</p>
+<div class="highlight"><pre><span></span>npm i validator@13.5.2
+</pre></div>
+
+<p>This package is a handy library for doing string validation and sanitization in JavaScript. You’ll need to import it along with the generic <code>ApolloError</code> from <code>apollo-server</code> and the <code>GraphQLScalarType</code> from <code>graphql</code> at the top of <code>DateTypeType.js</code>. We’ll also instantiate a new <code>GraphQLScalarType</code> called <code>DateTimeType</code>:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/scalars/DateTimeType.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">ApolloError</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">GraphQLScalarType</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">validator</span> <span class="nx">from</span> <span class="s2">&quot;validator&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">DateTimeType</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">GraphQLScalarType</span><span class="p">({</span>
+  <span class="nx">name</span><span class="o">:</span> <span class="s2">&quot;DateTime&quot;</span><span class="p">,</span>
+  <span class="nx">description</span><span class="o">:</span> <span class="s2">&quot;An ISO 8601-encoded UTC date string.&quot;</span>
+  <span class="c1">// date string validation logic will go here...</span>
+<span class="p">});</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">DateTimeType</span><span class="p">;</span>
+</pre></div>
+
+<p>The <code>GraphQLScalarType</code> expects us to pass in an object with a <code>name</code> and a <code>description</code> for the custom Scalar type. In addition to these properties, we have to create three methods that set the rules for the expected input and output values for this Scalar. For our use case:</p>
+<ul>
+<li><code>parseValue</code> will ensure the value sent <em>from</em> the client is a valid date string</li>
+<li><code>serialize</code> will ensure the value to be sent <em>to</em> the client is a valid date string</li>
+<li><code>parseLiteral</code> will ensure the value in the GraphQL abstract syntax tree (AST) is a valid date string</li>
+</ul>
+<p>To do this validation, our final <code>DateTimeType</code> will look like this:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/scalars/DateTypeType.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">ApolloError</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">GraphQLScalarType</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">validator</span> <span class="nx">from</span> <span class="s2">&quot;validator&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">DateTimeType</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">GraphQLScalarType</span><span class="p">({</span>
+  <span class="nx">name</span><span class="o">:</span> <span class="s2">&quot;DateTime&quot;</span><span class="p">,</span>
+<span class="hll">  <span class="nx">description</span><span class="o">:</span> <span class="s2">&quot;An ISO 8601-encoded UTC date string.&quot;</span><span class="p">,</span>
+</span><span class="hll">  <span class="nx">parseValue</span><span class="o">:</span> <span class="nx">value</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">if</span> <span class="p">(</span><span class="nx">validator</span><span class="p">.</span><span class="nx">isISO8601</span><span class="p">(</span><span class="nx">value</span><span class="p">))</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">value</span><span class="p">;</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">    <span class="k">throw</span> <span class="k">new</span> <span class="nx">ApolloError</span><span class="p">(</span><span class="s2">&quot;DateTime must be a valid ISO 8601 date string&quot;</span><span class="p">);</span>
+</span><span class="hll">  <span class="p">},</span>
+</span><span class="hll">  <span class="nx">serialize</span><span class="o">:</span> <span class="nx">value</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">if</span> <span class="p">(</span><span class="nx">validator</span><span class="p">.</span><span class="nx">isISO8601</span><span class="p">(</span><span class="nx">value</span><span class="p">))</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">value</span><span class="p">;</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">    <span class="k">throw</span> <span class="k">new</span> <span class="nx">ApolloError</span><span class="p">(</span><span class="s2">&quot;DateTime must be a valid ISO 8601 date string&quot;</span><span class="p">);</span>
+</span><span class="hll">  <span class="p">},</span>
+</span><span class="hll">  <span class="nx">parseLiteral</span><span class="o">:</span> <span class="nx">ast</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">if</span> <span class="p">(</span><span class="nx">validator</span><span class="p">.</span><span class="nx">isISO8601</span><span class="p">(</span><span class="nx">ast</span><span class="p">.</span><span class="nx">value</span><span class="p">))</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">ast</span><span class="p">.</span><span class="nx">value</span><span class="p">;</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">    <span class="k">throw</span> <span class="k">new</span> <span class="nx">ApolloError</span><span class="p">(</span><span class="s2">&quot;DateTime must be a valid ISO 8601 date string&quot;</span><span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="p">});</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">DateTimeType</span><span class="p">;</span>
+</pre></div>
+
+<p>Next, we’ll import the new <code>DateTimeType</code> object into <code>resolvers.js</code> to handle the <code>DateTime</code> type as it appears in our schema:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="nx">DateTimeType</span> <span class="nx">from</span> <span class="s2">&quot;./scalars/DateTimeType.js&quot;</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+<span class="hll">  <span class="nx">DateTime</span><span class="o">:</span> <span class="nx">DateTimeType</span><span class="p">,</span>
+</span>  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>Try rerunning the <code>review</code> query. You will see a new <code>DateTime</code> type in your GraphQL IDE, and the query should work just as it did before.</p>
+<h2 id="add-a-rating-scalar">Add a <code>Rating</code> Scalar</h2>
+<p>Let’s take what we just learned about creating custom Scalar types and apply it to something a bit more complex now. We currently have a <code>rating</code> field on the <code>Review</code>, <code>CreateReviewInput</code>, and <code>UpdateReviewInput</code> Input types, and the output type of these fields is an <code>Int</code>. The value of this field is only supposed to be an integer from one to five (representing the number of stars the user rated the book), but we’re not doing anything to enforce that requirement. We could check the value of the <code>rating</code> argument in the <code>createReview</code> and <code>updateReview</code> methods in the <code>JsonServerApi</code> data source, but a better, more expressive approach would be to codify this requirement in the schema. To do that, we’ll add a <code>Rating</code> Scalar type and update all of the <code>rating</code> fields in the schema to use it:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  An integer-based rating from 1 (low) to 5 (high).</span>
+</span><span class="hll"><span class="sb">  &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">  scalar Rating</span>
+</span><span class="hll">
+</span><span class="sb">  # ...</span>
+
+<span class="sb">  &quot;&quot;&quot;</span>
+<span class="sb">  Provides data to create a review.</span>
+<span class="sb">  &quot;&quot;&quot;</span>
+<span class="sb">  input CreateReviewInput {</span>
+<span class="sb">    # ...</span>
+<span class="sb">    &quot;The user&#39;s integer-based rating of the book (from 1 to 5).&quot;</span>
+<span class="hll"><span class="sb">    rating: Rating!</span>
+</span><span class="sb">    # ...</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+
+<span class="sb">  &quot;&quot;&quot;</span>
+<span class="sb">  Provides data to update a review.</span>
+<span class="sb">  &quot;&quot;&quot;</span>
+<span class="sb">  input UpdateReviewInput {</span>
+<span class="sb">    # ...</span>
+<span class="sb">    &quot;The user&#39;s integer-based rating of the book (from 1 to 5).&quot;</span>
+<span class="hll"><span class="sb">    rating: Rating!</span>
+</span><span class="sb">    # ...</span>
+<span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+
+<span class="sb">  &quot;&quot;&quot;</span>
+<span class="sb">  A user-submitted assessment of a book that may include a numerical rating.</span>
+<span class="sb">  &quot;&quot;&quot;</span>
+<span class="sb">  type Review {</span>
+<span class="sb">    # ...</span>
+<span class="sb">    &quot;The user&#39;s integer-based rating of the book (from 1 to 5).&quot;</span>
+<span class="hll"><span class="sb">    rating: Rating!</span>
+</span><span class="sb">    # ...</span>
+<span class="sb">  }</span>
+<span class="sb">  </span>
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>We’ll need to create the <code>GraphQLScalarType</code> for the <code>Rating</code> type next, so we’ll create a <code>RatingType.js</code> file in the same <code>scalars</code> directory that we created in the previous section. The set-up will be very similar to the <code>DateTime</code> scalar, but this time we’ll create our own <code>isValidRating</code> function instead of using the <code>validator</code> import:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/scalars/RatingType.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">ApolloError</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">GraphQLScalarType</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">Kind</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql&quot;</span><span class="p">;</span>
+
+<span class="kd">function</span> <span class="nx">isValidRating</span><span class="p">(</span><span class="nx">value</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="nb">Number</span><span class="p">.</span><span class="nx">isInteger</span><span class="p">(</span><span class="nx">value</span><span class="p">)</span> <span class="o">&amp;&amp;</span> <span class="nx">value</span> <span class="o">&gt;=</span> <span class="mi">1</span> <span class="o">&amp;&amp;</span> <span class="nx">value</span> <span class="o">&lt;=</span> <span class="mi">5</span><span class="p">;</span>
+<span class="p">}</span>
+
+<span class="kr">const</span> <span class="nx">RatingType</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">GraphQLScalarType</span><span class="p">({</span>
+  <span class="nx">name</span><span class="o">:</span> <span class="s2">&quot;Rating&quot;</span><span class="p">,</span>
+  <span class="nx">description</span><span class="o">:</span> <span class="s2">&quot;An integer representing a user rating from 1 and 5, inclusive.&quot;</span><span class="p">,</span>
+  <span class="nx">parseValue</span><span class="o">:</span> <span class="nx">value</span> <span class="p">=&gt;</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">isValidRating</span><span class="p">(</span><span class="nx">value</span><span class="p">))</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">value</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">throw</span> <span class="k">new</span> <span class="nx">ApolloError</span><span class="p">(</span><span class="s2">&quot;Rating must be an integer from 1 and 5&quot;</span><span class="p">);</span>
+  <span class="p">},</span>
+  <span class="nx">serialize</span><span class="o">:</span> <span class="nx">value</span> <span class="p">=&gt;</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">isValidRating</span><span class="p">(</span><span class="nb">parseInt</span><span class="p">(</span><span class="nx">value</span><span class="p">)))</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">value</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">throw</span> <span class="k">new</span> <span class="nx">ApolloError</span><span class="p">(</span><span class="s2">&quot;Rating must be an integer from 1 and 5&quot;</span><span class="p">);</span>
+  <span class="p">},</span>
+  <span class="nx">parseLiteral</span><span class="o">:</span> <span class="nx">ast</span> <span class="p">=&gt;</span> <span class="p">{</span>
+    <span class="kr">const</span> <span class="nx">intValue</span> <span class="o">=</span> <span class="nb">parseInt</span><span class="p">(</span><span class="nx">ast</span><span class="p">.</span><span class="nx">value</span><span class="p">);</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">ast</span><span class="p">.</span><span class="nx">kind</span> <span class="o">===</span> <span class="nx">Kind</span><span class="p">.</span><span class="nx">INT</span> <span class="o">&amp;&amp;</span> <span class="nx">isValidRating</span><span class="p">(</span><span class="nx">intValue</span><span class="p">))</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="nx">intValue</span><span class="p">;</span>
+    <span class="p">}</span>
+    <span class="k">throw</span> <span class="k">new</span> <span class="nx">ApolloError</span><span class="p">(</span><span class="s2">&quot;Rating must be and integer from 1 and 5&quot;</span><span class="p">);</span>
+  <span class="p">}</span>
+<span class="p">});</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">RatingType</span><span class="p">;</span>
+</pre></div>
+
+<p>Lastly, we’ll add the <code>RatingType</code> to the resolvers:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="nx">DateTimeType</span> <span class="nx">from</span> <span class="s2">&quot;./scalars/DateTimeType.js&quot;</span><span class="p">;</span>
+<span class="hll"><span class="kr">import</span> <span class="nx">RatingType</span> <span class="nx">from</span> <span class="s2">&quot;./scalars/RatingType.js&quot;</span><span class="p">;</span>
+</span>
+<span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="nx">DateTime</span><span class="o">:</span> <span class="nx">DateTimeType</span><span class="p">,</span>
+<span class="hll">  <span class="nx">Rating</span><span class="o">:</span> <span class="nx">RatingType</span><span class="p">,</span>
+</span>  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>Once again, run a mutation to create a new review for a book (or update an existing one) and try submitting an invalid integer. You should see the following error response:</p>
+<p></p>
+<div class="code-context">
+<p>API Response</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="s2">&quot;errors&quot;</span><span class="o">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="s2">&quot;message&quot;</span><span class="o">:</span> <span class="s2">&quot;Variable \&quot;$input\&quot; got invalid value 6 at \&quot;input.rating\&quot;; Expected type \&quot;Rating\&quot;. Rating must be an integer from 1 and 5&quot;</span><span class="p">,</span>
+      <span class="c1">// ...</span>
+    <span class="p">}</span>
+  <span class="p">],</span>
+  <span class="s2">&quot;data&quot;</span><span class="o">:</span> <span class="kc">null</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="directives-in-graphql">Directives in GraphQL</h2>
+<p>In addition to custom Scalar types, we can further enhance the expressiveness, utility, and predictability of a GraphQL schema using <em>directives</em>. In GraphQL, directives are denoted by an <code>@</code> character and are used to annotate parts of a schema or an operation document so that a client, validator, or executor can take special actions in response to the presence of that directive.<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a> Out-of-the-box, a GraphQL server must support the <code>@skip</code> and <code>@include</code> directives outlined in the specification, as well as an <code>@deprecated</code> directive if it supports an SDL-first approach to implementing type definitions. We can also define and use custom directives.</p>
+<p>GraphQL has two different kinds of directives—there are <em>type system</em> directives (also known as <em>schema</em> directives) and <em>executable</em> directives (also known as <em>query</em> directives). Type system directives are used to annotate different elements of a schema written in SDL such as types, fields, and Enum values, while executable directives are used to annotate parts of an operation document such as fragments, field selections, and even the entire query, mutation, or subscription.</p>
+<p>The built-in <code>@skip</code> and <code>@include</code> directives are examples of executable directives that can be used to selectively exclude or include fields in a query response based on some boolean condition. In this example with <code>@skip</code>, the <code>betaField</code> will only be included in the response if the <code>$useExperimental</code> value is false:</p>
+<div class="highlight"><pre><span></span><span class="kt">query</span> <span class="k">GetAuthors</span><span class="p">(</span><span class="nv">$useExperimental</span><span class="p">:</span> <span class="k">Boolean</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">authors</span> <span class="p">{</span>
+    <span class="k">name</span>
+    <span class="k">betaField</span> <span class="kt">@skip</span><span class="p">(</span>if: <span class="nv">$useExperimental</span><span class="p">)</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Conversely, using <code>@include</code> opts into querying a field if the <code>$useExperimental</code> value is true:</p>
+<div class="highlight"><pre><span></span><span class="kt">query</span> <span class="k">GetAuthors</span><span class="p">(</span><span class="nv">$useExperimental</span><span class="p">:</span> <span class="k">Boolean</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">authors</span> <span class="p">{</span>
+    <span class="k">name</span>
+    <span class="k">betaField</span> <span class="kt">@include</span><span class="p">(</span>if: <span class="nv">$useExperimental</span><span class="p">)</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>As we can see, directives can also include required arguments inside of parentheses, though some may only have optional arguments or none at all.</p>
+<p>The <code>@deprecated</code> directive, on the other hand, is a type system directive and is used to flag a field on any named type or an Enum type value that has been slated for removal from the schema so that clients can update their operations accordingly. It also supports a <code>reason</code> argument to provide more information about the deprecation:</p>
+<div class="highlight"><pre><span></span><span class="kt">type</span> <span class="k">Author</span> <span class="p">{</span>
+  fullName: <span class="k">String</span>
+  name: <span class="k">String</span> <span class="kt">@deprecated</span><span class="p">(</span>reason: <span class="s2">&quot;Use `fullName`.&quot;</span><span class="p">)</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Tools such as Explorer will also display additional information in their user interface to bring attention to deprecated fields so developers will know to avoid using them. Because GraphQL schemas are designed to be evolved in response to new product requirements, using the <code>@deprecated</code> directive is an essential component of a field rollover strategy so fields that are no longer needed or supported can be pruned from the schema.</p>
+<div class="boxout">
+<p><strong>Custom Executable Directives with Apollo Server</strong></p>
+<p>At the time of writing, the only executable directives supported by Apollo Server are the built-in <code>@skip</code> and <code>@include</code> directives. That means that it’s only possible to define custom type system directives with Apollo Server. However, <a href="https://www.apollographql.com/docs/federation/gateway/#executable-directives">Apollo Gateway</a> does provide support for defining custom executable directives for federated GraphQL APIs.</p>
+</div>
+<h2 id="add-an-unique-custom-directive">Add an <code>@unique</code> Custom Directive</h2>
+<p>Now that we’ve seen what the built-in directives can do, it’s time to make one of our own. To round out this chapter, we will implement a custom <code>@unique</code> type system directive the can be used on a field in an Input Object to ensure unique values are submitted for that field when creating or updating that value. As a result, we’ll be able to enforce that users submit unique emails and usernames when creating a new user by using a generalized directive instead of explicit runtime logic in the <code>JsonServerApi</code> data source.</p>
+<p>To use a custom directive in our schema, we must first define it. When we define a directive, we use the <code>directive</code> keyword and include its name preceded by an <code>@</code> character, and then specify any allowed arguments in parentheses. Lastly, we must specify the locations in the schema (or operation document for executable directives) where the directive may be used:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="hll"><span class="sb">  directive @unique(</span>
+</span><span class="hll"><span class="sb">    &quot;The resource path name from the REST endpoint.&quot;</span>
+</span><span class="hll"><span class="sb">    path: String!</span>
+</span><span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">    The database key name upon which to force uniqueness.</span>
+</span><span class="hll"><span class="sb">    </span>
+</span><span class="hll"><span class="sb">    If not provided, then the GraphQL schema field name will be used.</span>
+</span><span class="hll"><span class="sb">    &quot;&quot;&quot;</span>
+</span><span class="hll"><span class="sb">    key: String</span>
+</span><span class="hll"><span class="sb">  ) on INPUT_FIELD_DEFINITION</span>
+</span><span class="hll"><span class="sb">  </span>
+</span><span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>Above, the <code>@unique</code> directive takes a <code>path</code> to specify what kind of REST resource we need to check (for example, <code>authors</code> or <code>users</code>) and a <code>key</code> argument to specify what field in <code>db.json</code> to check against. The <code>key</code> argument will only be needed if the property name in <code>db.json</code> is different from the name of the field in the GraphQL schema.</p>
+<p>Additionally, because we’re creating a directive to be used on input fields in the schema, we specify that this directive is valid on the <code>INPUT_FIELD_DEFINITION</code> location. You can view a full list of supported locations for executable directives<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a> and type system directives<a href="#fn4" class="footnote-ref" id="fnref4" role="doc-noteref"><sup>4</sup></a> in the GraphQL specification. Before moving on from <code>typeDefs.js</code>, we’ll annotate the <code>email</code> and <code>username</code> fields in the <code>SignUpInput</code> type to use the new <code>@unique</code> directive:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="sb">  &quot;&quot;&quot;</span>
+<span class="sb">  Provides data to create a user.</span>
+<span class="sb">  &quot;&quot;&quot;</span>
+<span class="sb">  input SignUpInput {</span>
+<span class="sb">    &quot;The email address of the user (must be unique).&quot;</span>
+<span class="hll"><span class="sb">    email: String! @unique(path: &quot;users&quot;)</span>
+</span><span class="sb">    &quot;The full name of the user.&quot;</span>
+<span class="sb">    name: String!</span>
+<span class="sb">    &quot;The user&#39;s chosen username (must be unique).&quot;</span>
+<span class="hll"><span class="sb">    username: String! @unique(path: &quot;users&quot;)</span>
+</span><span class="sb">  }</span>
+
+<span class="sb">  # ...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>Next, we need to write some code that will verify that the user-submitted values are unique for the <code>email</code> and <code>username</code> fields. To begin, we’ll create a new directory called <code>directives</code> in <code>server/src/graphql</code> and add a <code>UniqueDirective.js</code> file to it. In this file, we’ll import the <code>SchemaDirectiveVisitor</code> class from Apollo Server (which is provided by its underlying <code>graphql-tools</code> dependency). To implement a custom schema directive, we must override one of the visitor methods defined in this class. For the <code>@unique</code> directive, we will override the <code>visitInputFieldDefinition</code> method. The basic set-up will look like this:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/directives/UniqueDirective.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">SchemaDirectiveVisitor</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">class</span> <span class="nx">UniqueDirective</span> <span class="kr">extends</span> <span class="nx">SchemaDirectiveVisitor</span> <span class="p">{</span>
+  <span class="nx">visitInputFieldDefinition</span><span class="p">(</span><span class="nx">field</span><span class="p">,</span> <span class="p">{</span> <span class="nx">objectType</span> <span class="p">})</span> <span class="p">{</span>
+    <span class="c1">// Field-validating code goes here...</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">UniqueDirective</span><span class="p">;</span>
+</pre></div>
+
+<div class="boxout">
+<p>The <code>SchemaDirectiveVisitor</code> class is very powerful and there are numerous examples in the Apollo Server documentation that show how to use it to create different kinds of type system directives, ranging from basic to advanced. The code required to support the <code>@unique</code> directive is on the advanced side, so you may wish to review some of those examples before proceeding. See Apollo Server’s directive documentation here:</p>
+<p><a href="https://www.apollographql.com/docs/apollo-server/schema/creating-directives/">https://www.apollographql.com/docs/apollo-server/schema/creating-directives/</a></p>
+</div>
+<p>Adding support for the <code>@unique</code> directive for a field on an Input Object type poses an interesting implementation challenge for us. With type system directives, it’s a common practice to access a field’s <code>resolve</code> property to alter the returned value for the field as required by the applied directive. However, there’s no <code>resolve</code> property available for an Input Object’s fields because they don’t resolve like other fields do (because they describe inputs to an operation, rather than outputs). But for our custom directive to work, we need access to the value of any Input Object field that was annotated with the <code>@unique</code> directive at the time of a <code>Mutation</code> field’s resolution to check if this value already exists in another resource in the database, and then throw an error if needed.</p>
+<p>To do this, we can tap into the <code>resolve</code> property for any field on the <code>Mutation</code> type that uses an Input Object type as an argument (like the <code>SignUpInput</code> does). Ultimately, we’ll need to hook into the resolver for any mutations that use the <code>SignUpInput</code> with the <code>@unique</code> directive applied to any of its fields to intercept the submitted values and determine if they are indeed unique. To do that, we’ll need to create two helper methods—one to get all of the mutations from the schema based on some filtering callback, and another to get an argument value for a field in a mutation:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/directives/UniqueDirective.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">SchemaDirectiveVisitor</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">class</span> <span class="nx">UniqueDirective</span> <span class="kr">extends</span> <span class="nx">SchemaDirectiveVisitor</span> <span class="p">{</span>
+<span class="hll">  <span class="nx">getMutations</span><span class="p">(</span><span class="nx">predicate</span> <span class="o">=</span> <span class="kc">null</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="k">this</span><span class="p">.</span><span class="nx">_mutations</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">this</span><span class="p">.</span><span class="nx">_mutations</span> <span class="o">=</span> <span class="nb">Object</span><span class="p">.</span><span class="nx">values</span><span class="p">(</span>
+</span><span class="hll">        <span class="k">this</span><span class="p">.</span><span class="nx">schema</span><span class="p">.</span><span class="nx">getMutationType</span><span class="p">().</span><span class="nx">getFields</span><span class="p">()</span>
+</span><span class="hll">      <span class="p">);</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">predicate</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_mutations</span> <span class="o">||</span> <span class="p">[];</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">_mutations</span><span class="p">.</span><span class="nx">filter</span><span class="p">(</span><span class="nx">predicate</span><span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">  <span class="nx">getMutationArgumentValue</span><span class="p">(</span><span class="nx">fieldName</span><span class="p">,</span> <span class="nx">args</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">argTuples</span> <span class="o">=</span> <span class="nb">Object</span><span class="p">.</span><span class="nx">entries</span><span class="p">(</span><span class="nx">args</span><span class="p">);</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">for</span> <span class="p">(</span><span class="kd">let</span> <span class="nx">i</span> <span class="o">=</span> <span class="mi">0</span><span class="p">;</span> <span class="nx">i</span> <span class="o">&lt;</span> <span class="nx">argTuples</span><span class="p">.</span><span class="nx">length</span><span class="p">;</span> <span class="nx">i</span><span class="o">++</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="kr">const</span> <span class="p">[</span><span class="nx">key</span><span class="p">,</span> <span class="nx">value</span><span class="p">]</span> <span class="o">=</span> <span class="nx">argTuples</span><span class="p">[</span><span class="nx">i</span><span class="p">];</span>
+</span><span class="hll">
+</span><span class="hll">      <span class="k">if</span> <span class="p">(</span><span class="nx">value</span> <span class="o">!==</span> <span class="kc">null</span> <span class="o">&amp;&amp;</span> <span class="k">typeof</span> <span class="nx">value</span> <span class="o">===</span> <span class="s2">&quot;object&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">        <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">getMutationArgumentValue</span><span class="p">(</span><span class="nx">fieldName</span><span class="p">,</span> <span class="nx">value</span><span class="p">);</span>
+</span><span class="hll">      <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">key</span> <span class="o">===</span> <span class="nx">fieldName</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">        <span class="k">return</span> <span class="nx">value</span><span class="p">;</span>
+</span><span class="hll">      <span class="p">}</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="k">return</span> <span class="kc">null</span><span class="p">;</span>
+</span><span class="hll">  <span class="p">}</span>
+</span>
+  <span class="nx">visitInputFieldDefinition</span><span class="p">(</span><span class="nx">field</span><span class="p">,</span> <span class="p">{</span> <span class="nx">objectType</span> <span class="p">})</span> <span class="p">{</span>
+    <span class="c1">// Field-validating code goes here...</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">UniqueDirective</span><span class="p">;</span>
+</pre></div>
+
+<div class="boxout">
+<p>This approach was inspired by an issue comment in the GraphQL Tools repository. You can read more about the original solution here:</p>
+<p><a href="https://github.com/ardatan/graphql-tools/issues/858#issuecomment-500170481">https://github.com/ardatan/graphql-tools/issues/858#issuecomment-500170481</a></p>
+</div>
+<p>In the code above, the <code>predicate</code> argument of <code>getMutations</code> is a function that must return <code>true</code> or <code>false</code> to filter the list of mutations in the <code>_mutations</code> property. We will use it to filter a list of mutations that use the <code>SignUpInput</code> for an argument type. The <code>getMutationArgumentValue</code> method helps us check the argument value of the field that must be unique (and recursively walks through any nested objects).</p>
+<p>Now for the fun part. We’re ready to build out the <code>visitInputFieldDefinition</code> method:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/directives/UniqueDirective.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">defaultFieldResolver</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;graphql&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">SchemaDirectiveVisitor</span><span class="p">,</span> <span class="nx">UserInputError</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="nx">fetch</span> <span class="nx">from</span> <span class="s2">&quot;node-fetch&quot;</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="hll"><span class="kr">const</span> <span class="nx">baseUrl</span> <span class="o">=</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">REST_API_BASE_URL</span><span class="p">;</span>
+</span>
+<span class="kr">class</span> <span class="nx">UniqueDirective</span> <span class="kr">extends</span> <span class="nx">SchemaDirectiveVisitor</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+
+  <span class="nx">visitInputFieldDefinition</span><span class="p">(</span><span class="nx">field</span><span class="p">,</span> <span class="p">{</span> <span class="nx">objectType</span> <span class="p">})</span> <span class="p">{</span>
+<span class="hll">    <span class="kr">const</span> <span class="p">{</span> <span class="nx">path</span><span class="p">,</span> <span class="nx">key</span> <span class="p">}</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">args</span><span class="p">;</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">fieldName</span> <span class="o">=</span> <span class="nx">key</span> <span class="o">?</span> <span class="nx">key</span> <span class="o">:</span> <span class="nx">field</span><span class="p">.</span><span class="nx">name</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">mutationsForInput</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">getMutations</span><span class="p">(({</span> <span class="nx">args</span> <span class="o">=</span> <span class="p">[]</span> <span class="p">})</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">args</span><span class="p">.</span><span class="nx">find</span><span class="p">(</span><span class="nx">arg</span> <span class="p">=&gt;</span> <span class="nx">arg</span><span class="o">?</span><span class="p">.</span><span class="nx">type</span><span class="o">?</span><span class="p">.</span><span class="nx">ofType</span> <span class="o">===</span> <span class="nx">objectType</span><span class="p">);</span>
+</span><span class="hll">    <span class="p">});</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="nx">mutationsForInput</span><span class="p">.</span><span class="nx">forEach</span><span class="p">(</span><span class="nx">mutation</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">      <span class="kr">const</span> <span class="p">{</span> <span class="nx">resolve</span> <span class="o">=</span> <span class="nx">defaultFieldResolver</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">mutation</span><span class="p">;</span>
+</span><span class="hll">      
+</span><span class="hll">      <span class="nx">mutation</span><span class="p">.</span><span class="nx">resolve</span> <span class="o">=</span> <span class="nx">async</span> <span class="p">(...</span><span class="nx">args</span><span class="p">)</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">        <span class="kr">const</span> <span class="nx">uniqueValue</span> <span class="o">=</span> <span class="k">this</span><span class="p">.</span><span class="nx">getMutationArgumentValue</span><span class="p">(</span><span class="nx">fieldName</span><span class="p">,</span> <span class="nx">args</span><span class="p">[</span><span class="mi">1</span><span class="p">]);</span>
+</span><span class="hll">
+</span><span class="hll">        <span class="k">if</span> <span class="p">(</span><span class="nx">uniqueValue</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">          <span class="kr">const</span> <span class="nx">response</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">fetch</span><span class="p">(</span>
+</span><span class="hll">            <span class="sb">`</span><span class="si">${</span><span class="nx">baseUrl</span><span class="si">}</span><span class="sb">/</span><span class="si">${</span><span class="nx">path</span><span class="si">}</span><span class="sb">?</span><span class="si">${</span><span class="nx">fieldName</span><span class="si">}</span><span class="sb">=</span><span class="si">${</span><span class="nx">uniqueValue</span><span class="si">}</span><span class="sb">`</span>
+</span><span class="hll">          <span class="p">);</span>
+</span><span class="hll">          <span class="kr">const</span> <span class="nx">results</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">response</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+</span><span class="hll">
+</span><span class="hll">          <span class="k">if</span> <span class="p">(</span><span class="nx">results</span><span class="p">.</span><span class="nx">length</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">            <span class="k">throw</span> <span class="k">new</span> <span class="nx">UserInputError</span><span class="p">(</span><span class="sb">`Value for </span><span class="si">${</span><span class="nx">fieldName</span><span class="si">}</span><span class="sb"> is already in use`</span><span class="p">);</span>
+</span><span class="hll">          <span class="p">}</span>
+</span><span class="hll">        <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">        <span class="k">return</span> <span class="nx">await</span> <span class="nx">resolve</span><span class="p">.</span><span class="nx">apply</span><span class="p">(</span><span class="k">this</span><span class="p">,</span> <span class="nx">args</span><span class="p">);</span>
+</span><span class="hll">      <span class="p">};</span>
+</span><span class="hll">    <span class="p">});</span>
+</span>  <span class="p">}</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">UniqueDirective</span><span class="p">;</span>
+</pre></div>
+
+<p>The new code may be a bit overwhelming at first, so let’s step through it. We first extract the argument values set for the <code>@unique</code> directive on the field in the schema and set the <code>fieldName</code> to the name of the Input Object type’s field by default if the optional <code>key</code> argument isn’t provided. Next, we use the <code>getMutations</code> method we previously created to get a list of the mutations that use the Input Object type where the <code>@unique</code> directive has been applied to its fields. For our purposes, the <code>objectType</code> value will equal <code>SignUpInput</code> here.</p>
+<p>Once we know what mutations use an Input Object type with the <code>@unique</code> directive applied to any of its fields, we get the value of the argument that needs to be unique and check if that value already exists for the resource in question in <code>db.json</code> by querying the REST API. If it already exists, we throw an error. Otherwise, we resolve the field as usual.</p>
+<p>With this code in place, we can tidy up our <code>JsonServerApi</code> data source by removing the <code>checkUniqueUserData</code> method definition by removing the line where we previously called it in the <code>signUp</code> method and removing the <code>async</code> keyword from <code>signUp</code> as well:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/dataSources/JsonServerApi.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">class</span> <span class="nx">JsonServerApi</span> <span class="kr">extends</span> <span class="nx">RESTDataSource</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  
+<span class="hll">  <span class="nx">signUp</span><span class="p">({</span> <span class="nx">email</span><span class="p">,</span> <span class="nx">name</span><span class="p">,</span> <span class="nx">username</span> <span class="p">})</span> <span class="p">{</span>
+</span>    <span class="k">return</span> <span class="k">this</span><span class="p">.</span><span class="nx">post</span><span class="p">(</span><span class="s2">&quot;/users&quot;</span><span class="p">,</span> <span class="p">{</span>
+      <span class="nx">createdAt</span><span class="o">:</span> <span class="k">new</span> <span class="nb">Date</span><span class="p">().</span><span class="nx">toISOString</span><span class="p">(),</span>
+      <span class="nx">email</span><span class="p">,</span>
+      <span class="nx">name</span><span class="p">,</span>
+      <span class="nx">username</span>
+    <span class="p">});</span>
+  <span class="p">}</span>
+  
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">JsonServerApi</span><span class="p">;</span>
+</pre></div>
+
+<p>As the final step, we need to make Apollo Server aware of the logic we just implemented in the <code>UniqueDirective</code> class. Instead of adding it to our resolvers, we will instead update the <code>ApolloServer</code> configuration in the top-level <code>index.js</code> file to include a <code>schemaDirectives</code> property. The value of this property is an object where the properties are the names of the custom directives in the schema and the values are the classes that extend <code>SchemaDirectiveVisitor</code>:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+<span class="hll"><span class="kr">import</span> <span class="nx">UniqueDirective</span> <span class="nx">from</span> <span class="s2">&quot;./graphql/directives/UniqueDirective.js&quot;</span><span class="p">;</span>
+</span>
+<span class="kr">const</span> <span class="nx">server</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">ApolloServer</span><span class="p">({</span>
+  <span class="c1">// ...</span>
+  <span class="nx">dataSources</span><span class="o">:</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="p">{</span>
+      <span class="nx">jsonServerApi</span><span class="o">:</span> <span class="k">new</span> <span class="nx">JsonServerApi</span><span class="p">()</span>
+    <span class="p">};</span>
+<span class="hll">  <span class="p">},</span>
+</span><span class="hll">  <span class="nx">schemaDirectives</span><span class="o">:</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">unique</span><span class="o">:</span> <span class="nx">UniqueDirective</span>
+</span>  <span class="p">}</span>
+<span class="p">});</span>
+
+<span class="c1">// ...</span>
+</pre></div>
+
+<p>Try running a <code>signUp</code> mutation again for a new user with an email address or username that’s taken used by an existing user. You will now see either a <code>Value for email is already in use</code> or <code>Value for username is already in use</code> error message in the response. If unique values are submitted for each of these fields, then the mutation should execute successfully.</p>
+<div class="boxout">
+<p><strong>Directive or Field Argument?</strong></p>
+<p>As a best practice, don’t create custom directives for things that should be regular field arguments. Custom directives are helpful when you need to modify the output or behavior of more than one field in a generalized way, such as enforcing unique values or handling access control. Field arguments are excellent for altering behavior on a per-field basis. If you find yourself creating a custom directive to use on a single field, that’s a good indicator that you may want to consider an argument instead.</p>
+<p>Also, keep in mind that directives can be used on any locations that they support in their definition, so if the intention isn’t to fully generalize how they can alter field output, then field arguments may be a better choice (or be prepared to deal with unintended use cases!).</p>
+</div>
+<h2 id="summary">Summary</h2>
+<p>In this chapter, we added various enhancements to our schema, including documentation for types and fields, two custom Scalar types, and a custom directive to enforce unique values for Input Object fields. At this point, Bibliotech’s GraphQL API has really taken shape and it’s almost ready for use in a real client application. The only missing piece now is to secure the API through authentication and authorization, which will tackle in the next chapter.</p>
+<section class="footnotes" role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1" role="doc-endnote"><p><a href="https://spec.graphql.org/June2018/#sec-Descriptions">https://spec.graphql.org/June2018/#sec-Descriptions</a><a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2" role="doc-endnote"><p><a href="https://spec.graphql.org/June2018/#sec-Type-System.Directives">https://spec.graphql.org/June2018/#sec-Type-System.Directives</a><a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3" role="doc-endnote"><p><a href="https://spec.graphql.org/June2018/#ExecutableDirectiveLocation">https://spec.graphql.org/June2018/#ExecutableDirectiveLocation</a><a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn4" role="doc-endnote"><p><a href="https://spec.graphql.org/June2018/#TypeSystemDirectiveLocation">https://spec.graphql.org/June2018/#TypeSystemDirectiveLocation</a><a href="#fnref4" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+<footer>
+<p class="copyright">Copyright © 2021 <a href="https://8bit.press/">8-Bit Press Inc.</a> All rights reserved.</p>
+</footer>
+</div>
+</div>
+<script>
+(function () {
+  "use strict";
+
+  const chapter = document.getElementById("chapter");
+
+  // Set width of fixed-position chapter navigation based on parent
+  function setChapterNavWidth() {
+    const chapterNav = document.getElementsByClassName("chapter-nav")[0];
+    let { width: chapterWidth } = chapter.getBoundingClientRect();
+    chapterNav.setAttribute(
+      "style",
+      `width: ${chapterWidth >= 960 ? chapterWidth * 0.3 + 36 + "px" : "100%"}`
+    );
+  }
+
+  setChapterNavWidth();
+  window.addEventListener("resize", setChapterNavWidth);
+
+  // Open and close the book navigation in the masthead
+  const openMastheadButton = document.getElementById("masthead-open");
+  const closeMastheadButton = document.getElementById("masthead-close");
+  const masthead = document.getElementById("masthead");
+
+  openMastheadButton.addEventListener("click", function (event) {
+    event.stopPropagation();
+    masthead.style.marginLeft = "0px";
+  });
+
+  closeMastheadButton.addEventListener("click", function () {
+    masthead.style.marginLeft = "-100%";
+  });
+
+  chapter.addEventListener("click", function () {
+    if (masthead.style.marginLeft === "0px") {
+      masthead.style.marginLeft = "-100%";
+    }
+  });
+
+  // Add "Copy" button to code snippets
+  // Reference: https://tomspencer.dev/blog/2018/09/14/adding-click-to-copy-buttons-to-a-hugo-powered-blog/
+  if (!document.queryCommandSupported("copy")) {
+    return;
+  }
+
+  function flashCopyMessage(el, msg) {
+    el.textContent = msg;
+    setTimeout(function () {
+      el.textContent = "Copy";
+    }, 1000);
+  }
+
+  function selectText(node) {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return selection;
+  }
+
+  function addCopyButton(containerEl) {
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "highlight-copy-btn";
+    copyBtn.textContent = "Copy";
+
+    var codeEl = containerEl.firstElementChild;
+    copyBtn.addEventListener("click", function () {
+      try {
+        const selection = selectText(codeEl);
+        document.execCommand("copy");
+        selection.removeAllRanges();
+
+        flashCopyMessage(copyBtn, "Copied!");
+      } catch (e) {
+        console && console.log(e);
+        flashCopyMessage(copyBtn, "Failed :'(");
+      }
+    });
+
+    containerEl.appendChild(copyBtn);
+  }
+
+  // Add copy button to code blocks
+  var highlightBlocks = document.getElementsByClassName("highlight");
+  Array.prototype.forEach.call(highlightBlocks, addCopyButton);
+})();
+</script>
+</body>
+</html>

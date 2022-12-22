@@ -1,0 +1,708 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US" xml:lang="en-US">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="../../images/favicon.ico" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Mandi Wise" />
+  <title>Get Going with GraphQL</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <link rel="stylesheet" href="../../css/web.min.css" />
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<div id="masthead">
+<div class="close-button-wrapper">
+<button id="masthead-close" type="button"><span>Close</span></button>
+</div>
+<header id="title-block-header">
+<h1 class="title">Get Going with GraphQL</h1>
+<p class="subtitle">Learn How to Build JavaScript Applications with Apollo Server and Apollo Client</p>
+<p class="author">Mandi Wise</p>
+</header>
+<nav class="book-nav">
+<ol class="front-matter-content">
+<li><a href="../preface/index.html">Preface</a></li>
+</ol>
+<ol class="main-matter-content">
+<li><a href="../chapter-01/index.html">Up and Running with GraphQL and Apollo Server</a></li>
+<li><a href="../chapter-02/index.html">More on Queries</a></li>
+<li><a href="../chapter-03/index.html">Mutating Data</a></li>
+<li><a href="../chapter-04/index.html">Pagination and Search Queries</a></li>
+<li><a href="../chapter-05/index.html">Documentation, Custom Scalars, and Custom Directives</a></li>
+<li><a href="../chapter-06/index.html">Authentication and Authorization</a></li>
+<li><a href="../chapter-07/index.html">React App Set-up</a></li>
+<li><a href="../chapter-08/index.html">Apollo Client with User Authentication</a></li>
+<li><a href="../chapter-09/index.html">Pagination, Mutations, and the Apollo Client Cache</a></li>
+<li><a href="../chapter-10/index.html">Real-time Updates with Subscriptions</a></li>
+</ol>
+<ol class="back-matter-content">
+<li><a href="../appendix-a/index.html">Appendix A</a></li>
+<li><a href="../about-the-author/index.html">About the Author</a></li>
+<li><a href="../changelog/index.html">Changelog</a></li>
+</ol>
+<img src="../../images/8bp-logo-white.svg" class="logo" alt="8-Bit Press Inc. logo" />
+</nav>
+</div>
+<div id="chapter">
+<div class="chapter-nav">
+<nav id="TOC" role="doc-toc">
+<button id="masthead-open" type="button"><span>Book Navigation</span></button>
+<h2 id="toc-title">Contents</h2>
+<ul>
+<li><a href="#up-and-running-with-graphql-and-apollo-server">Chapter 1: Up and Running with GraphQL and Apollo Server</a>
+<ul>
+<li><a href="#hello-schema-nice-to-meet-you">Hello Schema, Nice to Meet You</a></li>
+<li><a href="#basic-types-of-types">Basic Types of Types</a></li>
+<li><a href="#two-ways-to-modify-types">Two Ways to Modify Types</a></li>
+<li><a href="#a-graphql-api-to-call-our-own">A GraphQL API to Call Our Own</a></li>
+<li><a href="#but-first-a-mocked-rest-api">But First, a (Mocked) REST API</a></li>
+<li><a href="#initial-type-definitions">Initial Type Definitions</a></li>
+<li><a href="#resolvers-aka-functions-that-do-the-data-fetching">Resolvers, aka Functions that Do the Data Fetching</a></li>
+<li><a href="#wire-up-apollo-server">Wire Up Apollo Server</a></li>
+<li><a href="#exploring-the-graphql-api">Exploring the GraphQL API</a></li>
+<li><a href="#summary">Summary</a></li>
+</ul></li>
+</ul>
+</nav>
+</div>
+<div class="content">
+<h1 id="up-and-running-with-graphql-and-apollo-server">Chapter 1: Up and Running with GraphQL and Apollo Server</h1>
+<div class="boxout">
+<p>In this chapter, we will:</p>
+<ul>
+<li>Try running a query against the GitHub GraphQL API</li>
+<li>Use built-in Scalar types, define Object types, and create non-null and list fields</li>
+<li>Set up an Apollo Server with some basic type definitions and corresponding resolvers</li>
+<li>Add arguments to fields</li>
+<li>Run queries against a locally-running GraphQL API using Apollo Studio Explorer</li>
+</ul>
+</div>
+<h2 id="hello-schema-nice-to-meet-you">Hello Schema, Nice to Meet You</h2>
+<p>The heart of any GraphQL is its schema. While a REST API provides a series of structured routes that can be used to read or write different resources based HTTP verbs, a GraphQL API will instead expose a single endpoint (often at <code>/graphql</code>) to query any of the data exposed by the API. If you’ve spent many years working with REST APIs, then you may immediately wonder how a single endpoint can do all of the heavy lifting for an API.</p>
+<p>The answer is in the specially formatted query that we send to the GraphQL API endpoint. When sending requests to the API via HTTP, this query is often included in the body of a <code>POST</code> request. The GraphQL query language allows us to describe exactly what data we want to receive and in what shape we’d like to receive and—just like that—the GraphQL API will send a response back in precisely the format we requested as long as it’s compliant with API’s schema. If you’ve ever felt the pain of simultaneously over-fetching some data from an API while under-fetching the data you really wanted, and then subsequently needing to juggle various asynchronous requests and mash their responses together to finally populate all of the required data for a single view, then GraphQL will feel like a breath of fresh air for you.</p>
+<div class="boxout">
+<p><strong>Convention versus Specification</strong></p>
+<p>The <a href="https://spec.graphql.org/June2018/">GraphQL specification</a> is a detailed document describing how to define a GraphQL schema, how to write queries against that schema, and how to build an execution engine (also known as a GraphQL server) to respond to those queries. It does not, however, specify anything about the transport mechanism used to shuttle requests to and from a GraphQL server. That said, HTTP is commonly chosen for the transport layer and GraphQL clients often send <code>POST</code> requests containing a serialized JSON representation of the query in the request body. Similarly, GraphQL servers often respond with JSON as well.</p>
+<p>The <code>POST</code> verb is a common default for GraphQL requests because <code>GET</code> requests have size limits and complex queries may grow quite large. Additionally, a <code>POST</code> request’s body is encrypted over HTTPS, which will help limit potential exposure of any sensitive operation argument values included with the request. That said, tools like <a href="https://www.apollographql.com/docs/apollo-server/performance/apq/">Automatic Persisted Queries</a> allow you to hash GraphQL queries to ensure that they fit comfortably within <code>GET</code> requests limits, and thus allow you to take advantage of browser caches and CDNs.</p>
+</div>
+<p>GraphQL’s query language is very intuitive and the best way to learn it is to start writing queries. If you have a GitHub account, you can try sending a query to the GitHub GraphQL API using a browser-based tool available at <a href="https://docs.github.com/en/graphql/overview/explorer">https://docs.github.com/en/graphql/overview/explorer</a>. After logging in with your GitHub account, the <a href="https://github.com/graphql/graphiql">GraphiQL IDE</a> will be active with a <code>viewer</code> query preloaded in it. Press the play button above the editor to view the response:</p>
+<p><img src="../../images/screenshots/github-api-explorer-with-response.png" alt="In-browser interface for exploring the GitHub GraphQL API" /><br />
+</p>
+<p>With an easy click of a button, you just made your first query to a GraphQL API! And as promised, you were able to query the API for a specific piece of information about the currently logged in-user (in this case, your username), and that data was returned as JSON and in a shape mirroring the original query.</p>
+<p>Now that we’ve seen a query in action, let’s break it down piece by piece:</p>
+<p><img src="../../images/diagrams/operation-parts.png" class="center-no-caption" alt="Diagram of GraphQL operation parts" /></p>
+<p>The entirety of what you see above is known as a <em>document</em> in GraphQL speak and that document contains an <em>operation</em>. In this case, it is a <em>query</em> operation that performs a read-only fetch operation, but there are also <em>mutation</em> operations that write and fetch data and there are <em>subscription</em> operations that can fetch data in real-time in response to source events.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a></p>
+<p>When performing query operations only we can optionally omit the <code>query</code> keyword in front of the curly brackets as a shorthand:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Query</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="k">viewer</span> <span class="p">{</span>
+    <span class="k">login</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Inside the outermost curly brackets, we are then left with the <em>selection set</em> of <em>fields</em> that specify the precise data that we want to receive in the response. Lastly, note that GraphQL syntax also supports comments by preceding comment text with the <code>#</code> character.</p>
+<p>We’ve just unpacked several important GraphQL features using this basic query, but some important questions still linger. For one, how would we know that we were able to query a <code>viewer</code> from the GitHub API in the first place? And how do we find out what other fields can be queried for a <code>viewer</code>?</p>
+<p>The answer to those questions is the schema—a GraphQL schema defines what <em>types</em> and <em>fields</em> are queryable through the API, as well as the relationships between types. A GraphQL schema also defines the <em>root</em> operation types that it supports, including <code>query</code> (required), <code>mutation</code> (optional), and <code>subscription</code> (optional). We can think of the fields belonging to these root operation types as the entry points to a GraphQL API.</p>
+<p>One popular way to define a GraphQL schema is with the <em>schema definition language (SDL)</em>. For example, to support queries for a <code>viewer</code> field on the <code>query</code> root operation type, the GitHub API contains the following definition:</p>
+<div class="highlight"><pre><span></span><span class="kt">type</span> <span class="k">Query</span> <span class="p">{</span>
+  viewer: <span class="k">User</span><span class="p">!</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Above, the <code>query</code> root operation type is defined as an <em>Object</em> type called <code>Query</code> and that type contains a single <code>viewer</code> field (in reality, the GitHub API’s <code>Query</code> type contains many more fields, but we’ll start with one to keep things simple). But where does <code>User</code> come from, and what is its relation to the nested <code>login</code> field we saw earlier? And what does the exclamation point after <code>User</code> mean? To answer these questions, we’ll need to dive into GraphQL’s <em>type system</em>.</p>
+<h2 id="basic-types-of-types">Basic Types of Types</h2>
+<p>According to the GraphQL specification, types are the “fundamental unit” of a schema.<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a> We just saw an example of an Object type when we defined <code>type Query</code> with its <code>viewer</code> field above, and there are five other <em>named</em> types available in GraphQL that we can use too.</p>
+<h3 id="scalar-types">Scalar Types</h3>
+<p>The most basic type in GraphQL is a <em>Scalar</em> type. We can define custom Scalar types, but we typically start with the ones built into GraphQL. Out of the box, we can use <code>Int</code>, <code>Float</code>, <code>String</code>, <code>Boolean</code>, and <code>ID</code> Scalar types in a schema. The first four of those Scalar types represent exactly what they suggest. The <code>ID</code> type is a special-purpose Scalar type to indicate that a field is a unique identifier and that it will typically not be human-readable. Even if the <code>ID</code> value is numeric it should always serialize to a string.</p>
+<p>In practice, the built-in Scalar types are used to specify the types that correspond to fields in a schema as follows:</p>
+<div class="highlight"><pre><span></span><span class="kt">type</span> <span class="k">User</span> <span class="p">{</span>
+  bio: <span class="k">String</span>
+  id: <span class="k">ID</span>
+  isViewer: <span class="k">Boolean</span>
+  pinnedItemsRemaining: <span class="k">Int</span>
+<span class="p">}</span>
+</pre></div>
+
+<h3 id="object-types">Object Types</h3>
+<p>But wait! We haven’t addressed how we were able to arbitrarily define <code>type User</code> in the last example. We have already seen an example of an Object type when we defined <code>type Query</code> previously, but we can also define Object types that are specific to our schema.</p>
+<p>Object types are very powerful because they allow us to express relationships (or <em>edges</em>) between the different data types (or <em>nodes</em>) within our graph. If we think of the <code>query</code> root operation type as an entry point to our API, then Scalar types are the outer nodes in our graph where we finally reach the data. By connecting Object types through their fields, we can facilitate deeper traversal across the graph to these outer nodes.</p>
+<p>In our simplified GitHub API schema, we can move from the root <code>Query</code> type to a single authenticated <code>User</code> via the <code>viewer</code> field. With the following modification, we can go one level deeper:</p>
+<div class="highlight"><pre><span></span><span class="kt">type</span> <span class="k">User</span> <span class="p">{</span>
+  bio: <span class="k">String</span>
+  id: <span class="k">ID</span>
+  isViewer: <span class="k">Boolean</span>
+  pinnedItemsRemaining: <span class="k">Int</span>
+<span class="hll">  status: <span class="k">UserStatus</span>
+</span><span class="p">}</span>
+
+<span class="hll"><span class="kt">type</span> <span class="k">UserStatus</span> <span class="p">{</span>
+</span><span class="hll">  emoji: <span class="k">String</span>
+</span><span class="hll">  id: <span class="k">ID</span>
+</span><span class="hll">  message: <span class="k">String</span>
+</span><span class="hll"><span class="p">}</span>
+</span></pre></div>
+
+<p>Here we see a powerful feature of GraphQL’s type system in action—the ability to define Object types as collections of related fields and then nest them within one another to define the relationships between those types that ultimately allow us to move from node to node across our data graph.</p>
+<p>Much of a GraphQL schema will end up being composed of the Object types that you create, but there are still two specification-defined Object types that we should make note of before moving on. Those types are the <code>Mutation</code> and <code>Subscription</code> types that correspond to those root operations in an API. We’ll cover those types in-depth in Chapter 3 and Chapter 10 respectively.</p>
+<p>And if you’re keeping count, you’ve probably noticed that we’ve only explored two of the six named types in GraphQL so far. Scalar and Object types will be all we need to begin building a functioning GraphQL API, so we’ll cover <em>Input</em> types in Chapter 3 and <em>Enum</em>, <em>Interface</em>, and <em>Union</em> types in Chapter 4 as we require them to build out additional API features.</p>
+<h2 id="two-ways-to-modify-types">Two Ways to Modify Types</h2>
+<p>By default, GraphQL expects that a field’s corresponding type is singular and that it may return null values. However, in addition to the named types we’ve already explored, the GraphQL specification outlines two different <em>wrapping types</em> that we can use “wrap” named types and modify their defaults.</p>
+<h3 id="non-null">Non-Null</h3>
+<p>To make a field non-null, we use an exclamation point. Making a field non-null means that a client consuming this API can always expect a value to be returned for this field, and if one is not available, then the query will return an error. We have already seen this where we defined the <code>viewer</code> field on the <code>Query</code> type:</p>
+<div class="highlight"><pre><span></span><span class="kt">type</span> <span class="k">Query</span> <span class="p">{</span>
+  viewer: <span class="k">User</span><span class="p">!</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>As a further example, if we update the <code>User</code> type to reflect GitHub’s real API, then we would make the <code>id</code>, <code>isViewer</code>, and <code>pinnedItemsRemaining</code> fields non-null:</p>
+<div class="highlight"><pre><span></span><span class="kt">type</span> <span class="k">User</span> <span class="p">{</span>
+  bio: <span class="k">String</span>
+<span class="hll">  id: <span class="k">ID</span><span class="p">!</span>
+</span><span class="hll">  isViewer: <span class="k">Boolean</span><span class="p">!</span>
+</span><span class="hll">  pinnedItemsRemaining: <span class="k">Int</span><span class="p">!</span>
+</span>  status: <span class="k">UserStatus</span>
+<span class="p">}</span>
+</pre></div>
+
+<div class="boxout">
+<p><strong>Best Practice: Think About Nullability Up Front</strong></p>
+<p>Non-null fields have the advantage of making API responses more predictable, but they come with the trade-off of making that API harder to evolve in some ways in the future. For example, if a non-null field is later transitioned to nullable or removed entirely from an Object type, then breaking changes may result for clients that assume the field value will be there.</p>
+<p>The inherently evolvable nature of a GraphQL API combined with the risk of breaking changes where alterations to a field’s nullability are concerned is a good reason to take time to make an informed choice about whether a field should be nullable or non-null when it’s added to a schema.</p>
+<p>When unforeseen circumstances require changes to field nullability in the future, you can use observability tooling to understand what clients are using that field in your API and then proactively help those affected client developers avoid breaking changes to user interfaces.</p>
+</div>
+<h3 id="lists">Lists</h3>
+<p>Fields can also output lists of types and we indicate such a list by wrapping the type name in brackets. If we wanted to add a non-null field to the <code>User</code> type that contained a list without any null items, we would update our code as follows:</p>
+<div class="highlight"><pre><span></span><span class="kt">type</span> <span class="k">User</span> <span class="p">{</span>
+  bio: <span class="k">String</span>
+  id: <span class="k">ID</span><span class="p">!</span>
+  isViewer: <span class="k">Boolean</span><span class="p">!</span>
+  pinnedItemsRemaining: <span class="k">Int</span><span class="p">!</span>
+  status: <span class="k">UserStatus</span>
+<span class="hll">  organizationVerifiedDomainEmails: <span class="p">[</span><span class="k">String</span><span class="p">!]!</span>
+</span><span class="p">}</span>
+</pre></div>
+
+<p>If we wanted to permit a potentially empty list or null items in the list, but still require an empty list to be returned (rather than a null value), then we would specify the field’s output type as <code>[String]!</code>. Similarly, if we wanted to allow the field itself to be nullable but disallow non-null values in the list, we would specify the field’s output type as <code>[String!]</code>. Lastly, to permit a nullable list of strings that may contain null values or be empty, we would specify the field’s output type as <code>[String]</code>.</p>
+<h2 id="a-graphql-api-to-call-our-own">A GraphQL API to Call Our Own</h2>
+<p>We have now covered just enough GraphQL theory to roll up our sleeves and start building a GraphQL API from scratch with Apollo Server. To do that, we’ll need to define a schema and set up a GraphQL server to respond to client requests to our API.</p>
+<p>Our objective is to build a new and improved version of the REST-based Bibliotech API using GraphQL. Under the hood, the new GraphQL API will use the existing REST endpoints as a data source—a step that many teams take to migrate to GraphQL within an organization. Later on, as the REST API is phased out, different data sources may be swapped in behind the GraphQL API and any clients presently making GraphQL requests will be none the wiser.</p>
+<p>The Bibliotech API provides information about books, authors, and allows users to create a personal library of their favorite books, as well as rate and review them. In the final three chapters, we’ll also build out an MVP client application using React and Apollo Client to consume data from the new GraphQL API. The index page of the Bibliotech React app will look like this:</p>
+<p><img src="../../images/screenshots/react-app-book-list.png" alt="Book list rendered on the index page" /><br />
+</p>
+<p>We’ll leverage the GraphQL API to build out additional pages to display a user’s favorite books, book search results, and a single book view. We will also need to create forms to authenticate users, add and update reviews, and add new authors and books. To begin, let’s create a project directory, <code>cd</code> into it, and then run the following command to set up the <code>server</code> directory:</p>
+<div class="highlight"><pre><span></span>mkdir server <span class="o">&amp;&amp;</span> <span class="nb">cd</span> server
+</pre></div>
+
+<p>Second, we’ll create a <code>package.json</code> file in the new <code>server</code> directory (the <code>--yes</code> flag creates the <code>package.json</code> file without asking any questions):</p>
+<div class="highlight"><pre><span></span>npm init --yes
+</pre></div>
+
+<p>Next, we’ll install some initial dependencies:</p>
+<div class="highlight"><pre><span></span>npm i apollo-server@2.22.2 concurrently@5.3.0 dotenv@8.2.0 graphql@15.5.0 json-server@0.16.3 node-fetch@2.6.1 nodemon@2.0.7
+</pre></div>
+
+<p>Let’s take a brief look at each of the packages we just installed:</p>
+<ul>
+<li><p><code>apollo-server</code>: Apollo Server is an open-source GraphQL server that will allow us to define a GraphQL schema and execute queries against that schema.</p></li>
+<li><p><code>concurrently</code>: We can run multiple commands at the same time using this package. It also has support for shortened commands with wildcards.</p></li>
+<li><p><code>dotenv</code>: This package loads environment variables from a <code>.env</code> file into <a href="https://nodejs.org/docs/latest/api/process.html#process_process_env"><code>process.env</code></a>.</p></li>
+<li><p><code>graphql</code>: Apollo Server requires this library as a peer dependency.</p></li>
+<li><p><code>json-server</code>: This package allows us to instantly spin up a REST API using data from a JSON file, so we’ll use this to mock the existing Bibliotech API. You may wish to quickly review the <a href="https://github.com/typicode/json-server#json-server--">JSON Server documentation</a> if you haven’t used it before.</p></li>
+<li><p><code>node-fetch</code>: This is a Node.js implementation of <code>window.fetch</code> and it will facilitate fetching data from the REST endpoints.</p></li>
+<li><p><code>nodemon</code>: Nodemon will automatically reload our server when files change in the project directory.</p></li>
+</ul>
+<p>As an additional piece of configuration in the <code>package.json</code> file, we’ll set the <code>type</code> field to <code>module</code> so that we can use <a href="https://nodejs.org/api/esm.html#esm_modules_ecmascript_modules">ECMAScript module syntax</a> in our files:</p>
+<p></p>
+<div class="code-context">
+<p>server/package.json</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="c1">// ...</span>
+<span class="hll">  <span class="s2">&quot;type&quot;</span><span class="o">:</span> <span class="s2">&quot;module&quot;</span><span class="p">,</span>
+</span>  <span class="c1">// ...</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="but-first-a-mocked-rest-api">But First, a (Mocked) REST API</h2>
+<p>Before we can use the Bibliotech REST API as a backing data source for the GraphQL API, we’ll need to create a file from which JSON Server can query data. Create a <code>db.json</code> file in the <code>server</code> directory and add the following code to it:</p>
+<p></p>
+<div class="code-context">
+<p>server/db.json</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;authors&quot;</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+      <span class="nt">&quot;name&quot;</span><span class="p">:</span> <span class="s2">&quot;Douglas Adams&quot;</span>
+    <span class="p">}</span>
+  <span class="p">],</span>
+  <span class="nt">&quot;books&quot;</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+      <span class="nt">&quot;cover&quot;</span><span class="p">:</span> <span class="s2">&quot;http://covers.openlibrary.org/b/isbn/9780671461492-L.jpg&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;summary&quot;</span><span class="p">:</span> <span class="s2">&quot;After a Vogon constructor fleet destroys Earth to make way for a hyperspace bypass, the last surviving man, Arthur Dent, embarks on an interstellar adventure with his friend Ford Prefect (who, apparently, was an alien all along).&quot;</span><span class="p">,</span>
+      <span class="nt">&quot;title&quot;</span><span class="p">:</span> <span class="s2">&quot;The Hitchhiker&#39;s Guide to the Galaxy&quot;</span>
+    <span class="p">}</span>
+  <span class="p">],</span>
+  <span class="nt">&quot;bookAuthors&quot;</span><span class="p">:</span> <span class="p">[</span>
+    <span class="p">{</span>
+      <span class="nt">&quot;id&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+      <span class="nt">&quot;authorId&quot;</span><span class="p">:</span> <span class="mi">1</span><span class="p">,</span>
+      <span class="nt">&quot;bookId&quot;</span><span class="p">:</span> <span class="mi">1</span>
+    <span class="p">}</span>
+  <span class="p">]</span>
+<span class="p">}</span>
+</pre></div>
+
+<div class="boxout">
+<p>If you’re using version control in this project, you may wish to ignore the <code>db.json</code> file as we will be writing test data to this file as we build out the GraphQL API throughout this book.</p>
+</div>
+<p>JSON Server will automatically create an endpoint for each of the top-level properties in the <code>db.json</code> file. We’ll primarily use the <code>/authors</code> and <code>/books</code> endpoints for now, while the <code>/bookAuthors</code> endpoint will act like a join table would to capture the many-to-many relationship between authors and books. Next, we can make our lives easier by writing some custom routes for the REST API that will make the process of querying for all authors of a given book or all books by a given author a bit more intuitive than querying <code>/bookAuthors</code> directly. To do this, we’ll create a <code>routes.json</code> file in the <code>server</code> directory and add the following code to it:</p>
+<p></p>
+<div class="code-context">
+<p>server/routes.json</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="nt">&quot;/authors/:authorId/books&quot;</span><span class="p">:</span> <span class="s2">&quot;/bookAuthors?authorId=:authorId&amp;_expand=book&quot;</span><span class="p">,</span>
+  <span class="nt">&quot;/books/:bookId/authors&quot;</span><span class="p">:</span> <span class="s2">&quot;/bookAuthors?bookId=:bookId&amp;_expand=author&quot;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Lastly, we can remove the existing <code>test</code> script in the <code>package.json</code> file and replace it with a script to start up our brand new REST API:</p>
+<p></p>
+<div class="code-context">
+<p>server/package.json</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="c1">// ...</span>
+  <span class="s2">&quot;scripts&quot;</span><span class="o">:</span> <span class="p">{</span>
+<span class="hll">    <span class="s2">&quot;server:rest&quot;</span><span class="o">:</span> <span class="s2">&quot;json-server -w db.json -p 5000 -r routes.json -q&quot;</span>
+</span>  <span class="p">},</span>
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Run <code>npm run server:rest</code> and try out the following endpoints to confirm they return the expected data before proceeding:</p>
+<ul>
+<li><a href="http://localhost:5000/authors">http://localhost:5000/authors</a></li>
+<li><a href="http://localhost:5000/books">http://localhost:5000/books</a></li>
+<li><a href="http://localhost:5000/authors/1/books">http://localhost:5000/authors/1/books</a></li>
+<li><a href="http://localhost:5000/books/1/authors">http://localhost:5000/books/1/authors</a></li>
+</ul>
+<h2 id="initial-type-definitions">Initial Type Definitions</h2>
+<p>With our REST API up and running, it’s time to define the first few types in the Bibliotech schema. First, we’ll create a subdirectory to organize our GraphQL-related code, as well as a <code>typeDefs.js</code> file to house our type definitions. We’ll create a <code>graphql</code> directory in <code>server</code>, add the <code>typeDefs.js</code> file to it, and then set up the new file as follows:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # GraphQL type definitions will go here...</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>We’re going to define our type definitions as a string inside of a JavaScript file using SDL and then wrap that string in the <code>gql</code> template literal tag to convert it into the format that Apollo Server is expecting. As a bonus, the <code>gql</code> tag will enable GraphQL syntax highlighting within the string when the <a href="https://marketplace.visualstudio.com/items?itemName=apollographql.vscode-apollo">Apollo GraphQL VS Code extension</a> is installed.</p>
+<p>Next, let’s add some initial type definitions for the <code>Author</code> and <code>Book</code> Object types, as well as the root <code>Query</code> type with some related fields for querying lists of authors and books:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="hll"><span class="sb">  type Author {</span>
+</span><span class="hll"><span class="sb">    id: ID!</span>
+</span><span class="hll"><span class="sb">    books: [Book]</span>
+</span><span class="hll"><span class="sb">    name: String!</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll">
+</span><span class="hll"><span class="sb">  type Book {</span>
+</span><span class="hll"><span class="sb">    id: ID!</span>
+</span><span class="hll"><span class="sb">    authors: [Author]</span>
+</span><span class="hll"><span class="sb">    title: String!</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll">
+</span><span class="hll"><span class="sb">  type Query {</span>
+</span><span class="hll"><span class="sb">    authors: [Author]</span>
+</span><span class="hll"><span class="sb">    books: [Book]</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>Getting lists of authors and books is useful, but we’ll also need a way to query a single author or book based on a unique identifier. To do that, we’ll add some new query fields with <em>arguments</em>. In our previous example with <code>User</code> Object type from the GitHub API, we mocked the <code>organizationVerifiedDomainEmails</code> field on the type as it is in the real API, but left out one key detail. This field accepts a <code>login</code> argument that represents the login of the organization from which to match verified domains. The real field looks like this:</p>
+<div class="highlight"><pre><span></span><span class="kt">type</span> <span class="k">User</span> <span class="p">{</span>
+  <span class="c c-Singline"># ...</span>
+<span class="hll">  <span class="k">organizationVerifiedDomainEmails</span><span class="p">(</span>login: <span class="k">String</span><span class="p">!):</span> <span class="p">[</span><span class="k">String</span><span class="p">!]!</span>
+</span><span class="p">}</span>
+</pre></div>
+
+<p>Parentheses are used after the field name to indicate that the field accepts arguments, and inside, each of the arguments is listed by name with its corresponding type. In this above example, the <code>login</code> argument expects a non-null <code>String</code> to be provided when the field is queried.</p>
+<p>For our API, we’ll add <code>author</code> and <code>book</code> fields that each accept a non-null <code>ID</code> as an argument, and return a single <code>Author</code> or <code>Book</code> respectively:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="sb">  type Query {</span>
+<span class="hll"><span class="sb">    author(id: ID!): Author</span>
+</span><span class="sb">    authors: [Author]</span>
+<span class="hll"><span class="sb">    book(id: ID!): Book</span>
+</span><span class="sb">    books: [Book]</span>
+<span class="sb">  }</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>The basic syntax for a query that contains field arguments is as follows:</p>
+<p></p>
+<div class="code-context">
+<p>GraphQL Query</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kt">query</span> <span class="p">{</span>
+  <span class="k">author</span><span class="p">(</span>id: <span class="s2">&quot;1&quot;</span><span class="p">)</span> <span class="p">{</span>
+    <span class="k">name</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<h2 id="resolvers-aka-functions-that-do-the-data-fetching">Resolvers, aka Functions that Do the Data Fetching</h2>
+<p>With some type definitions in place, we now need a way to respond to API requests with real data. To do that, we must write <em>resolver</em> functions. The Apollo Server documentation<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a> provides the following concise definition of what a resolver function does:</p>
+<blockquote>
+<p><strong>A resolver is a function that’s responsible for populating the data for a single field in your schema.</strong> It can populate that data in any way you define, such as by fetching data from a back-end database or a third-party API.</p>
+</blockquote>
+<p>Resolvers have the following function signature:</p>
+<div class="highlight"><pre><span></span><span class="nx">someField</span><span class="p">(</span><span class="nx">parent</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="s2">&quot;Hello, world!&quot;</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Let’s explore what each of the resolver’s parameters exposes in the function:</p>
+<ul>
+<li><code>parent</code>: GraphQL resolvers are executed in a chain starting at the top-most level of the query and working down toward the Scalar types at the outer edges. At each step, the field currently being resolved will have access to the data from the previously resolved <code>parent</code> field in the chain. For the <code>query</code>, <code>mutation</code>, and <code>subscription</code> root operation types, this value will come from the <code>rootValue</code> function passed to the <code>ApolloServer</code> constructor. You’ll often see this parameter named to reflect what the parent type is (for example, instead of naming the parameter <code>parent</code> it will be named <code>book</code> in field resolvers for the <code>Book</code> type).</li>
+<li><code>args</code>: This parameter is an object that contains any arguments supplied for this field as a part of the query. For the example in the previous section, we would expect the <code>args</code> value of the <code>author</code> field resolver to be <code>{ id: "1" }</code>.</li>
+<li><code>context</code>: The <code>context</code> parameter is another object and it provides us with a way to share data across all of the field resolvers for a given operation. For example, we may wish to include information from a decoded token to authorize access to different fields in our API. The <code>context</code> object is recreated with each request so we don’t have to worry about the data contained within going stale or inadvertently being shared across requests.</li>
+<li><code>info</code>: The final <code>info</code> parameter is typically needed for advanced use cases only and contains information about the field in question, a representation of the entire schema, an abstract syntax tree (AST) for the operation, and more.</li>
+</ul>
+<div class="boxout">
+<p><strong>Good to Know!</strong></p>
+<p>Resolver functions can return promises, so it’s OK to use the <code>async</code> keyword with them.</p>
+</div>
+<p>We’ll keep our resolvers organized in a separate file, so create a <code>resolvers.js</code> file in the <code>server/src/graphql</code> directory. We’ll structure the resolver functions in an object so that Apollo Server will be able to understand what resolvers correspond to which fields. We’ll begin by adding the following code to <code>resolvers.js</code>:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="nx">Query</span><span class="o">:</span> <span class="p">{</span>
+    <span class="nx">async</span> <span class="nx">author</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="p">{</span> <span class="nx">id</span> <span class="p">},</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+      <span class="c1">// Fetch an author by ID here...</span>
+    <span class="p">},</span>
+    <span class="nx">async</span> <span class="nx">authors</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+      <span class="c1">// Fetch all authors here...</span>
+    <span class="p">},</span>
+    <span class="nx">async</span> <span class="nx">book</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="p">{</span> <span class="nx">id</span> <span class="p">},</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+      <span class="c1">// Fetch a book by ID here...</span>
+    <span class="p">},</span>
+    <span class="nx">async</span> <span class="nx">books</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+      <span class="c1">// Fetch all books here...      </span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>Note that each key nested in the object value of the <code>Query</code> key directly corresponds to a field name from the type definitions we just created. We have also marked each function as <code>async</code> because we must <code>await</code> a <code>GET</code> request to the mocked REST API to obtain the data that will be returned for the fields. Let’s update each resolver to fetch the appropriate data now:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="nx">fetch</span> <span class="nx">from</span> <span class="s2">&quot;node-fetch&quot;</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="hll"><span class="kr">const</span> <span class="nx">baseURL</span> <span class="o">=</span> <span class="s2">&quot;http://localhost:5000&quot;</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="nx">Query</span><span class="o">:</span> <span class="p">{</span>
+    <span class="nx">async</span> <span class="nx">author</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="p">{</span> <span class="nx">id</span> <span class="p">},</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+<span class="hll">      <span class="kr">const</span> <span class="nx">res</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">fetch</span><span class="p">(</span><span class="sb">`</span><span class="si">${</span><span class="nx">baseURL</span><span class="si">}</span><span class="sb">/authors/</span><span class="si">${</span><span class="nx">id</span><span class="si">}</span><span class="sb">`</span><span class="p">).</span><span class="k">catch</span><span class="p">(</span>
+</span><span class="hll">        <span class="nx">err</span> <span class="p">=&gt;</span> <span class="nx">err</span><span class="p">.</span><span class="nx">message</span> <span class="o">===</span> <span class="s2">&quot;404: Not Found&quot;</span> <span class="o">&amp;&amp;</span> <span class="kc">null</span>
+</span><span class="hll">      <span class="p">);</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">res</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+</span>    <span class="p">},</span>
+    <span class="nx">async</span> <span class="nx">authors</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+<span class="hll">      <span class="kr">const</span> <span class="nx">res</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">fetch</span><span class="p">(</span><span class="sb">`</span><span class="si">${</span><span class="nx">baseURL</span><span class="si">}</span><span class="sb">/authors`</span><span class="p">);</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">res</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+</span>    <span class="p">},</span>
+    <span class="nx">async</span> <span class="nx">book</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="p">{</span> <span class="nx">id</span> <span class="p">},</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+<span class="hll">      <span class="kr">const</span> <span class="nx">res</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">fetch</span><span class="p">(</span><span class="sb">`</span><span class="si">${</span><span class="nx">baseURL</span><span class="si">}</span><span class="sb">/books/</span><span class="si">${</span><span class="nx">id</span><span class="si">}</span><span class="sb">`</span><span class="p">).</span><span class="k">catch</span><span class="p">(</span>
+</span><span class="hll">        <span class="nx">err</span> <span class="p">=&gt;</span> <span class="nx">err</span><span class="p">.</span><span class="nx">message</span> <span class="o">===</span> <span class="s2">&quot;404: Not Found&quot;</span> <span class="o">&amp;&amp;</span> <span class="kc">null</span>
+</span><span class="hll">      <span class="p">);</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">res</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+</span>    <span class="p">},</span>
+    <span class="nx">async</span> <span class="nx">books</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+<span class="hll">      <span class="kr">const</span> <span class="nx">res</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">fetch</span><span class="p">(</span><span class="sb">`</span><span class="si">${</span><span class="nx">baseURL</span><span class="si">}</span><span class="sb">/books`</span><span class="p">);</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">res</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+</span>    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>This code is all we need to take care of resolving data for fields on the <code>Query</code> type, but what about the <code>Author</code> and <code>Book</code> types? As you can imagine, if a schema contained many Object types with many different fields, then it could get very tedious to write resolvers for each field.</p>
+<p>Luckily, if the <code>parent</code> object argument contains a property with a name that matches the field name, then Apollo Server will use a <em>default resolver</em> to automatically supply that value for the field. That means that <code>id</code> and <code>name</code> fields will be automatically resolved for the <code>Author</code> type and the <code>id</code> and <code>title</code> fields will be automatically resolved for the <code>Book</code> type because these properties are readily available in the objects fetched from the REST API.</p>
+<p>However, because we expressed a many-to-many relationship between authors and books in our schema, we will need to provide a <code>books</code> field resolver for <code>Author</code> and an <code>authors</code> field resolver for <code>Book</code>. To do that, we’ll update our code:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+<span class="hll">  <span class="nx">Author</span><span class="o">:</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">async</span> <span class="nx">books</span><span class="p">(</span><span class="nx">author</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="kr">const</span> <span class="nx">res</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">fetch</span><span class="p">(</span><span class="sb">`</span><span class="si">${</span><span class="nx">baseURL</span><span class="si">}</span><span class="sb">/authors/</span><span class="si">${</span><span class="nx">author</span><span class="p">.</span><span class="nx">id</span><span class="si">}</span><span class="sb">/books`</span><span class="p">);</span>
+</span><span class="hll">      <span class="kr">const</span> <span class="nx">items</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">res</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">items</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">item</span> <span class="p">=&gt;</span> <span class="nx">item</span><span class="p">.</span><span class="nx">book</span><span class="p">);</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">  <span class="p">}</span>,
+</span><span class="hll">  Book: <span class="p">{</span>
+</span><span class="hll">    <span class="nx">async</span> <span class="nx">authors</span><span class="p">(</span><span class="nx">book</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="kr">const</span> <span class="nx">res</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">fetch</span><span class="p">(</span><span class="sb">`</span><span class="si">${</span><span class="nx">baseURL</span><span class="si">}</span><span class="sb">/books/</span><span class="si">${</span><span class="nx">book</span><span class="p">.</span><span class="nx">id</span><span class="si">}</span><span class="sb">/authors`</span><span class="p">);</span>
+</span><span class="hll">      <span class="kr">const</span> <span class="nx">items</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">res</span><span class="p">.</span><span class="nx">json</span><span class="p">();</span>
+</span><span class="hll">      <span class="k">return</span> <span class="nx">items</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">item</span> <span class="p">=&gt;</span> <span class="nx">item</span><span class="p">.</span><span class="nx">author</span><span class="p">);</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">  <span class="p">}</span>,
+</span>  Query: <span class="p">{</span>
+    <span class="c1">// ...</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>We now have all of the required code in place to resolve every field in the schema.</p>
+<h2 id="wire-up-apollo-server">Wire Up Apollo Server</h2>
+<p>Now that we have type definitions and resolvers ready to go, we’re finally ready to create a new Apollo Server and start sending requests to the GraphQL API. We’ll instantiate an <code>ApolloServer</code> object in a top-level <code>index.js</code> file for our server application. Inside the <code>server/src</code> directory, create the <code>index.js</code> file first. To create an <code>ApolloServer</code>, we only need to pass in our <code>typeDefs</code> and <code>resolvers</code> and call its <code>listen</code> method to start it up (under the hood, Apollo Server runs on <a href="https://expressjs.com/">Express</a> by default). We can do that in about a dozen lines of code in the new <code>index.js</code> file:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">ApolloServer</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server&quot;</span><span class="p">;</span>
+
+<span class="kr">import</span> <span class="nx">resolvers</span> <span class="nx">from</span> <span class="s2">&quot;./graphql/resolvers.js&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">typeDefs</span> <span class="nx">from</span> <span class="s2">&quot;./graphql/typeDefs.js&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">server</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">ApolloServer</span><span class="p">({</span>
+  <span class="nx">typeDefs</span><span class="p">,</span>
+  <span class="nx">resolvers</span>
+<span class="p">});</span>
+
+<span class="nx">server</span><span class="p">.</span><span class="nx">listen</span><span class="p">().</span><span class="nx">then</span><span class="p">(({</span> <span class="nx">url</span> <span class="p">})</span> <span class="p">=&gt;</span> <span class="p">{</span>
+  <span class="nx">console</span><span class="p">.</span><span class="nx">log</span><span class="p">(</span><span class="sb">`Server ready at </span><span class="si">${</span><span class="nx">url</span><span class="si">}</span><span class="sb">`</span><span class="p">);</span>
+<span class="p">});</span>
+</pre></div>
+
+<p>Just one last step! We’ll need a <code>server:graphql</code> script to start up the GraphQL API. In this script, we’ll set the <code>--ignore</code> option for Nodemon because we don’t need to restart the server every time a record is added, updated, or removed from <code>db.json</code>. For convenience, we’ll use Concurrently to create a top-level <code>server</code> script to start the REST API and GraphQL API together:</p>
+<p></p>
+<div class="code-context">
+<p>server/package.json</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="c1">// ...</span>
+  <span class="s2">&quot;scripts&quot;</span><span class="o">:</span> <span class="p">{</span>
+<span class="hll">    <span class="s2">&quot;server&quot;</span><span class="o">:</span> <span class="s2">&quot;concurrently -k npm:server:*&quot;</span><span class="p">,</span>
+</span><span class="hll">    <span class="s2">&quot;server:rest&quot;</span><span class="o">:</span> <span class="s2">&quot;json-server -w db.json -p 5000 -r routes.json -q&quot;</span><span class="p">,</span>
+</span><span class="hll">    <span class="s2">&quot;server:graphql&quot;</span><span class="o">:</span> <span class="s2">&quot;nodemon --ignore db.json ./src/index.js&quot;</span>
+</span>  <span class="p">},</span>
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>If we try running <code>npm run server</code> in the terminal now, then we should see both APIs start up. By default, the GraphQL API will be available at <a href="http://localhost:4000/">http://localhost:4000/</a> and we will access it at the <code>/graphql</code> path. We can take the GraphQL API for a quick test spin by opening another terminal tab or window and running this cURL command:</p>
+<div class="highlight"><pre><span></span>curl <span class="s1">&#39;http://localhost:4000/graphql&#39;</span> -H <span class="s1">&#39;Content-Type: application/json&#39;</span> -H <span class="s1">&#39;Accept: application/json&#39;</span> --data-binary <span class="s1">&#39;{&quot;query&quot;:&quot;query { books { title id } }&quot;}&#39;</span> --compressed
+</pre></div>
+
+<p>The following response output should appear in the terminal:</p>
+<div class="highlight"><pre><span></span><span class="o">{</span><span class="s2">&quot;data&quot;</span>:<span class="o">{</span><span class="s2">&quot;books&quot;</span>:<span class="o">[{</span><span class="s2">&quot;title&quot;</span>:<span class="s2">&quot;The Hitchhiker&#39;s Guide to the Galaxy&quot;</span>,<span class="s2">&quot;id&quot;</span>:<span class="s2">&quot;1&quot;</span><span class="o">}]}}</span>
+</pre></div>
+
+<p>Congratulations! You are now the proud owner of a shiny, new GraphQL API.</p>
+<h2 id="exploring-the-graphql-api">Exploring the GraphQL API</h2>
+<p>Now that our API is up and running, it would be easier if we had a more visual way to experiment with it than cURL commands. There are many browser-based GraphQL IDEs to choose from today—we’ve already seen one such example when we used the embedded GraphiQL tool to try out the GitHub API. <a href="https://github.com/graphql/graphql-playground">GraphQL Playground</a> is another option, and it even comes bundled with Apollo Server. If you navigate to <a href="http://localhost:4000/graphql">http://localhost:4000/graphql</a> directly in your browser, you can explore your GraphQL API and run queries against it using GraphQL Playground right now.</p>
+<p>Currently, one of the most feature-rich, browser-based IDEs designed for testing GraphQL operations is <a href="https://www.apollographql.com/docs/studio/explorer/">Apollo Studio Explorer</a>. It includes a clickable query builder interface, operation history, and a spotlight-style search for browsing types and fields. Explorer is offered as a free feature of the <a href="https://www.apollographql.com/docs/studio/">Apollo Studio</a> platform and examples throughout this book will demonstrate how to use it as a GraphQL IDE.</p>
+<p>There are two different ways that you can access Explorer. If you would prefer to use it without creating an Apollo Studio account, you can navigate to <a href="https://sandbox.apollo.dev">https://sandbox.apollo.dev</a> and update the sandbox URL to <a href="http://localhost:4000/graphql">http://localhost:4000/graphql</a> and you will be able to explore the Bibliotech GraphQL API immediately (skip to Page 21 for further directions on how to do so).</p>
+<p>Alternatively, for a more feature-rich experience using Explorer (including a query history and additional customization settings), you can sign up for an Apollo Studio account by following these quick steps. First, navigate to <a href="https://studio.apollographql.com/">https://studio.apollographql.com/</a> to register for a new account:</p>
+<p><img src="../../images/screenshots/apollo-studio-sign-up.png" alt="Apollo Studio login page" /><br />
+</p>
+<p>Click the “Create an account” link and then create a new account either using your email or GitHub account. Be sure to pick the “Local development” plan. Once your account has been created, you’ll have the option to choose a “Deployed” or “Development” graph. A deployed graph can take advantage of Apollo Studio features such as its schema registry, metrics reporting, and is typically meant for team collaboration. A development graph will poll your development server for schema updates as you work. For our purposes, we will choose a development graph. Be sure to give it a unique name and set the correct endpoint:</p>
+<p><img src="../../images/screenshots/apollo-studio-onboarding-1.png" alt="Create a new graph in Apollo Studio" /><br />
+</p>
+<p>After creating your graph, Explorer will load with a demo query operation in the editor:</p>
+<p><img src="../../images/screenshots/apollo-studio-onboarding-2.png" alt="Apollo Studio Explorer IDE" /><br />
+</p>
+<p>The auto update option will keep Explorer in sync with the schema in your local development environment.</p>
+<p>Next, replace the demo query in the editor with the following operation document:</p>
+<div class="highlight"><pre><span></span>query <span class="o">{</span>
+  authors <span class="o">{</span>
+    id
+  <span class="o">}</span>
+<span class="o">}</span>
+</pre></div>
+
+<p>Then click on <code>authors: [Author]</code> under the “Fields” subheading in the lefthand panel. Click the plus sign next to the <code>name</code> and <code>books</code> fields to automatically add them to the query (you can also type the field names into the editor if you prefer). Click and add more fields under the <code>books</code> field as well, and then press the “Run” button above the editor to execute the query:</p>
+<p><img src="../../images/screenshots/apollo-studio-onboarding-3.png" alt="Table view of response data in Apollo Studio Explorer" /><br />
+</p>
+<p>In the image above, the table view has been toggled to display the results in a table format instead of the default JSON format. Keep this feature in mind when viewing complex lists of results. Before you move on to the next chapter, be sure to try out some of Explorer’s other features, such as the spotlight-style search (accessible from the magnifying glass icon at the top of the lefthand panel). And if you signed up for an Apollo Studio account, try out some of the various settings you can configure (from the gear icon) such as dark mode and editor hints.</p>
+<p>As a final feature to highlight, Apollo Studio also provides a convenient interface for exploring the different types in your schema. As schemas grow in size, it can become increasingly difficult to have a bird’s eye view of all of the types in it, especially if all of those type definitions are contained within a single file. You can access an overview of all of your type definitions organized by type by navigating to the “Schema” page (it’s the first item in the lefthand navigation menu):</p>
+<p><img src="../../images/screenshots/apollo-studio-onboarding-4.png" alt="Apollo Studio schema page" /><br />
+</p>
+<div class="boxout">
+<p><strong>Introspection: The GraphQL Magic that Makes Tools Like Explorer Possible</strong></p>
+<p>You may wonder how it’s possible for tools such as Explorer to know so much about your GraphQL schema simply by sharing your API’s endpoint. A GraphQL schema can share information about itself via <em>introspection</em>. In practice, that means that a GraphQL API exposes a special <code>__schema</code> field on the <code>query</code> root operation type that allows us to request information about the API itself, such as the names of its various types and fields.</p>
+<p>You can see introspection in action by running the following query:</p>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="k">__schema</span> <span class="p">{</span>
+    <span class="k">types</span> <span class="p">{</span>
+      <span class="k">name</span>
+      <span class="k">fields</span> <span class="p">{</span>
+        <span class="k">name</span>
+      <span class="p">}</span>
+    <span class="p">}</span>
+  <span class="p">}</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Note that it’s considered a best practice to turn off introspection in production for non-public GraphQL APIs to prevent potential bad actors from learning about the detailed inner workings of the API by sending an introspection query to it.</p>
+</div>
+<h2 id="summary">Summary</h2>
+<p>We covered a lot of ground in this chapter, from learning how to write basic queries against a third-party GraphQL API, to creating type definitions for a schema of our own, and writing resolver functions to provide data for all of the fields in our API. We also learned about two named types in the GraphQL type system—Object and Scalar types—and learned how to add arguments to fields. Lastly, we saw how a visual tool like Apollo Studio Explorer can make it easy to experiment with a GraphQL API as we develop it.</p>
+<p>In the next chapter, we’ll continue to add new Object types and additional <code>query</code> fields to the Bibliotech API while also adopting some best practices related to GraphQL API design and development.</p>
+<section class="footnotes" role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1" role="doc-endnote"><p><a href="https://spec.graphql.org/June2018/#sec-Language">https://spec.graphql.org/June2018/#sec-Language</a><a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2" role="doc-endnote"><p><a href="https://spec.graphql.org/June2018/#sec-Type-System">https://spec.graphql.org/June2018/#sec-Type-System</a><a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3" role="doc-endnote"><p><a href="https://www.apollographql.com/docs/apollo-server/data/resolvers/">https://www.apollographql.com/docs/apollo-server/data/resolvers/</a><a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+<footer>
+<p class="copyright">Copyright © 2021 <a href="https://8bit.press/">8-Bit Press Inc.</a> All rights reserved.</p>
+</footer>
+</div>
+</div>
+<script>
+(function () {
+  "use strict";
+
+  const chapter = document.getElementById("chapter");
+
+  // Set width of fixed-position chapter navigation based on parent
+  function setChapterNavWidth() {
+    const chapterNav = document.getElementsByClassName("chapter-nav")[0];
+    let { width: chapterWidth } = chapter.getBoundingClientRect();
+    chapterNav.setAttribute(
+      "style",
+      `width: ${chapterWidth >= 960 ? chapterWidth * 0.3 + 36 + "px" : "100%"}`
+    );
+  }
+
+  setChapterNavWidth();
+  window.addEventListener("resize", setChapterNavWidth);
+
+  // Open and close the book navigation in the masthead
+  const openMastheadButton = document.getElementById("masthead-open");
+  const closeMastheadButton = document.getElementById("masthead-close");
+  const masthead = document.getElementById("masthead");
+
+  openMastheadButton.addEventListener("click", function (event) {
+    event.stopPropagation();
+    masthead.style.marginLeft = "0px";
+  });
+
+  closeMastheadButton.addEventListener("click", function () {
+    masthead.style.marginLeft = "-100%";
+  });
+
+  chapter.addEventListener("click", function () {
+    if (masthead.style.marginLeft === "0px") {
+      masthead.style.marginLeft = "-100%";
+    }
+  });
+
+  // Add "Copy" button to code snippets
+  // Reference: https://tomspencer.dev/blog/2018/09/14/adding-click-to-copy-buttons-to-a-hugo-powered-blog/
+  if (!document.queryCommandSupported("copy")) {
+    return;
+  }
+
+  function flashCopyMessage(el, msg) {
+    el.textContent = msg;
+    setTimeout(function () {
+      el.textContent = "Copy";
+    }, 1000);
+  }
+
+  function selectText(node) {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return selection;
+  }
+
+  function addCopyButton(containerEl) {
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "highlight-copy-btn";
+    copyBtn.textContent = "Copy";
+
+    var codeEl = containerEl.firstElementChild;
+    copyBtn.addEventListener("click", function () {
+      try {
+        const selection = selectText(codeEl);
+        document.execCommand("copy");
+        selection.removeAllRanges();
+
+        flashCopyMessage(copyBtn, "Copied!");
+      } catch (e) {
+        console && console.log(e);
+        flashCopyMessage(copyBtn, "Failed :'(");
+      }
+    });
+
+    containerEl.appendChild(copyBtn);
+  }
+
+  // Add copy button to code blocks
+  var highlightBlocks = document.getElementsByClassName("highlight");
+  Array.prototype.forEach.call(highlightBlocks, addCopyButton);
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,1647 @@
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" lang="en-US" xml:lang="en-US">
+<head>
+  <meta charset="utf-8" />
+  <link rel="icon" href="../../images/favicon.ico" />
+  <meta name="generator" content="pandoc" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes" />
+  <meta name="author" content="Mandi Wise" />
+  <title>Get Going with GraphQL</title>
+  <style>
+    code{white-space: pre-wrap;}
+    span.smallcaps{font-variant: small-caps;}
+    span.underline{text-decoration: underline;}
+    div.column{display: inline-block; vertical-align: top; width: 50%;}
+    div.hanging-indent{margin-left: 1.5em; text-indent: -1.5em;}
+    ul.task-list{list-style: none;}
+  </style>
+  <link rel="stylesheet" href="../../css/web.min.css" />
+  <!--[if lt IE 9]>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/html5shiv/3.7.3/html5shiv-printshiv.min.js"></script>
+  <![endif]-->
+</head>
+<body>
+<div id="masthead">
+<div class="close-button-wrapper">
+<button id="masthead-close" type="button"><span>Close</span></button>
+</div>
+<header id="title-block-header">
+<h1 class="title">Get Going with GraphQL</h1>
+<p class="subtitle">Learn How to Build JavaScript Applications with Apollo Server and Apollo Client</p>
+<p class="author">Mandi Wise</p>
+</header>
+<nav class="book-nav">
+<ol class="front-matter-content">
+<li><a href="../preface/index.html">Preface</a></li>
+</ol>
+<ol class="main-matter-content">
+<li><a href="../chapter-01/index.html">Up and Running with GraphQL and Apollo Server</a></li>
+<li><a href="../chapter-02/index.html">More on Queries</a></li>
+<li><a href="../chapter-03/index.html">Mutating Data</a></li>
+<li><a href="../chapter-04/index.html">Pagination and Search Queries</a></li>
+<li><a href="../chapter-05/index.html">Documentation, Custom Scalars, and Custom Directives</a></li>
+<li><a href="../chapter-06/index.html">Authentication and Authorization</a></li>
+<li><a href="../chapter-07/index.html">React App Set-up</a></li>
+<li><a href="../chapter-08/index.html">Apollo Client with User Authentication</a></li>
+<li><a href="../chapter-09/index.html">Pagination, Mutations, and the Apollo Client Cache</a></li>
+<li><a href="../chapter-10/index.html">Real-time Updates with Subscriptions</a></li>
+</ol>
+<ol class="back-matter-content">
+<li><a href="../appendix-a/index.html">Appendix A</a></li>
+<li><a href="../about-the-author/index.html">About the Author</a></li>
+<li><a href="../changelog/index.html">Changelog</a></li>
+</ol>
+<img src="../../images/8bp-logo-white.svg" class="logo" alt="8-Bit Press Inc. logo" />
+</nav>
+</div>
+<div id="chapter">
+<div class="chapter-nav">
+<nav id="TOC" role="doc-toc">
+<button id="masthead-open" type="button"><span>Book Navigation</span></button>
+<h2 id="toc-title">Contents</h2>
+<ul>
+<li><a href="#apollo-client-with-user-authentication">Chapter 8: Apollo Client with User Authentication</a>
+<ul>
+<li><a href="#install-apollo-client">Install Apollo Client</a></li>
+<li><a href="#add-books-to-the-index-page">Add Books to the Index Page</a></li>
+<li><a href="#send-the-jwt-in-a-cookie">Send the JWT in a Cookie</a></li>
+<li><a href="#log-in-or-register-a-new-user-from-the-client">Log In or Register a New User from the Client</a></li>
+<li><a href="#use-context-and-hooks-to-manage-authentication-state">Use Context and Hooks to Manage Authentication State</a></li>
+<li><a href="#log-out-a-user">Log Out a User</a></li>
+<li><a href="#render-private-and-public-routes">Render Private and Public Routes</a></li>
+<li><a href="#display-a-users-library-on-the-home-page">Display a User’s Library on the Home Page</a></li>
+<li><a href="#summary">Summary</a></li>
+</ul></li>
+</ul>
+</nav>
+</div>
+<div class="content">
+<h1 id="apollo-client-with-user-authentication">Chapter 8: Apollo Client with User Authentication</h1>
+<div class="boxout">
+<p>In this chapter, we will:</p>
+<ul>
+<li>Install and configure Apollo Client in a React application</li>
+<li>Fetch a list of books to display on the index page</li>
+<li>Send a JWT to a client in an HttpOnly cookie</li>
+<li>Use React’s context API to manage authentication state</li>
+<li>Add a logout button to the navigation bar</li>
+<li>Render private and public routes with React Router</li>
+<li>Fetch an authenticated user’s library books and display them on the homepage</li>
+</ul>
+</div>
+<h2 id="install-apollo-client">Install Apollo Client</h2>
+<p>In the previous chapter, we created and styled a few basic routes for Bibliotech’s React application so we’re ready to begin querying data from the GraphQL API to populate these pages with data. If you don’t have a lot of book data in your <code>db.json</code> file yet and would like to have some ready-made data to query through the API to display in the user interface over the next three chapters, then you can add the contents of the following file to your <code>db.json</code> file before proceeding:</p>
+<p><a href="https://gist.github.com/mandiwise/9e123954246de7d3be8f9fb75663409b">https://gist.github.com/mandiwise/9e123954246de7d3be8f9fb75663409b</a></p>
+<p>So far, we queried data from a GraphQL API using a cURL command and a GraphQL IDE, but we’re going to need to take a different approach to fetch and render the data in a React component. To do this, we’ll use Apollo Client to send GraphQL operations and then cache the data returned from the Bibliotech API. Let’s install Apollo Client 3 and its graphql.js peer dependency in <code>client</code> now:</p>
+<div class="highlight"><pre><span></span>npm i @apollo/client@3.3.11 graphql@15.5.0
+</pre></div>
+
+<p>We’ll also add a <code>.env</code> file to the <code>client</code> directory and set a variable for the GraphQL API endpoint in it. We can use a <code>.env</code> file with Create React App as long as we prefix the variables inside it with <code>REACT_APP_</code> as follows:</p>
+<p></p>
+<div class="code-context">
+<p>client/.env</p>
+</div>
+<div class="highlight"><pre><span></span>REACT_APP_GRAPHQL_ENDPOINT=http://localhost:4000/graphql
+</pre></div>
+
+<p>Whenever we add or update an environment variable in our React application we’ll need to restart it. Additionally, the <code>NODE_ENV</code> variable is set automatically for us by Create React App, so we don’t need to worry about defining it in this file.</p>
+<div class="boxout">
+<p>It’s important to note that any environment variables we reference from the client-specific <code>.env</code> file will be publicly exposed in the browser, so we won’t want to put any sensitive information in there (such as API secrets).</p>
+</div>
+<p>Next, we’ll create a <code>graphql</code> directory in <code>client/src</code> to store the Apollo client configuration file. We’ll add some operation documents and fragments in this directory later on too. For now, we’ll just create an <code>apollo.js</code> file in it and add this code:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/apollo.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">ApolloClient</span><span class="p">,</span> <span class="nx">HttpLink</span><span class="p">,</span> <span class="nx">InMemoryCache</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">client</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">ApolloClient</span><span class="p">({</span>
+  <span class="nx">cache</span><span class="o">:</span> <span class="k">new</span> <span class="nx">InMemoryCache</span><span class="p">(),</span>
+  <span class="nx">connectToDevTools</span><span class="o">:</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">NODE_ENV</span> <span class="o">===</span> <span class="s2">&quot;development&quot;</span><span class="p">,</span>
+  <span class="nx">link</span><span class="o">:</span> <span class="k">new</span> <span class="nx">HttpLink</span><span class="p">({</span> <span class="nx">uri</span><span class="o">:</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">REACT_APP_GRAPHQL_ENDPOINT</span> <span class="p">})</span>
+<span class="p">});</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">client</span><span class="p">;</span>
+</pre></div>
+
+<p>Above, the <code>ApolloClient</code> constructor takes two important options: an <code>inMemoryCache</code> object and an <code>HttpLink</code> object that we pass our <code>REACT_APP_GRAPHQL_API_URL</code> environment variable into so Apollo Client knows where to send requests. We use an <code>HttpLink</code> object instead of providing the GraphQL API endpoint directly to Apollo Client because we can chain together multiple link objects here to customize how data is sent from Apollo Client to the Bibliotech API if desired (we’ll learn more about the <a href="https://www.apollographql.com/docs/react/api/link/introduction/">Apollo Link API</a> in Chapter 10). We can also optionally set the <code>connectToDevTools</code> option to <code>true</code> to use the <a href="https://www.apollographql.com/docs/react/development-testing/developer-tooling/#apollo-client-devtools">Apollo Client Dev Tools</a>. At the bottom of the file, the default export is the newly instantiated Apollo Client.</p>
+<p>Next, we’ll import the <code>ApolloProvider</code> component into our top-level <code>index.js</code> and wrap it around our <code>Router</code> component so that all of the pages will be able to use Apollo Client to query data. We’ll also need to import the Apollo Client instance we just exported from <code>apollo.js</code> and pass it into the <code>ApolloProvider</code> component as a prop:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">ApolloProvider</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+</span><span class="c1">// ...</span>
+
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">Routes</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;./router&quot;</span><span class="p">;</span>
+<span class="hll"><span class="kr">import</span> <span class="nx">client</span> <span class="nx">from</span> <span class="s2">&quot;./graphql/apollo&quot;</span><span class="p">;</span>
+</span>
+<span class="kd">function</span> <span class="nx">App</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+<span class="hll">    <span class="p">&lt;</span><span class="nt">ApolloProvider</span> <span class="na">client</span><span class="o">=</span><span class="p">{</span><span class="nx">client</span><span class="p">}&gt;</span>
+</span>      <span class="p">&lt;</span><span class="nt">Router</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">Routes</span> <span class="p">/&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">Router</span><span class="p">&gt;</span>
+<span class="hll">    <span class="p">&lt;/</span><span class="nt">ApolloProvider</span><span class="p">&gt;</span>
+</span>  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// ...</span>
+</pre></div>
+
+<p>That’s all we need to do to get up and running with Apollo Client! When the development server restarts, the application should look exactly as it did before.</p>
+<h2 id="add-books-to-the-index-page">Add Books to the Index Page</h2>
+<p>It’s time at last to write a query to fetch data from Bibliotech’s GraphQL API to display in the React application. Our first query will get a list of books and display them on the index page. To begin, we’ll create a <code>queries.js</code> file to store all of our query documents, and then write a <code>GetBooks</code> query just as we did in Explorer. We’ll also wrap the query in a <code>gql</code> template tag as we did for the type definitions in the <code>typeDefs.js</code> file on the server side:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/queries.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="kr">const</span> <span class="nx">GetBooks</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  query GetBooks($limit: Int, $page: Int) {</span>
+<span class="sb">    books(limit: $limit, orderBy: TITLE_ASC, page: $page) {</span>
+<span class="sb">      results {</span>
+<span class="sb">        authors {</span>
+<span class="sb">          id</span>
+<span class="sb">          name</span>
+<span class="sb">        }</span>
+<span class="sb">        cover</span>
+<span class="sb">        id</span>
+<span class="sb">        title</span>
+<span class="sb">      }</span>
+<span class="sb">      pageInfo {</span>
+<span class="sb">        hasNextPage</span>
+<span class="sb">        page</span>
+<span class="sb">      }</span>
+<span class="sb">    }</span>
+<span class="sb">  }</span>
+<span class="sb">`</span><span class="p">;</span>
+</pre></div>
+
+<p>Before we use this query in the <code>Index</code> page component, we’ll need to add a couple of new components first. While waiting for data to be fetched asynchronously from the GraphQL API, we should provide feedback in the user interface about that loading state, so we’ll use some Tailwind classes to create a CSS-based loader icon with animation in the <code>index.css</code> file:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/index.css</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c">/* ... */</span>
+
+<span class="hll"><span class="p">.</span><span class="nc">loader</span> <span class="p">{</span>
+</span><span class="hll">  <span class="err">@apply</span> <span class="err">inline-block</span> <span class="err">h-12</span> <span class="err">w-12</span><span class="p">;</span>
+</span><span class="hll"><span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll"><span class="p">.</span><span class="nc">loader</span><span class="p">:</span><span class="nd">after</span> <span class="p">{</span>
+</span><span class="hll">  <span class="err">@apply</span> <span class="err">block</span> <span class="err">border-4</span> <span class="err">border-solid</span> <span class="err">rounded-full</span> <span class="err">h-12</span> <span class="err">w-12</span><span class="p">;</span>
+</span><span class="hll">  <span class="k">animation</span><span class="p">:</span> <span class="n">spin</span> <span class="mf">1.2</span><span class="kt">s</span> <span class="kc">linear</span> <span class="kc">infinite</span><span class="p">;</span>
+</span><span class="hll">  <span class="k">border-color</span><span class="p">:</span> <span class="mh">#cbd5e0</span> <span class="kc">transparent</span> <span class="mh">#cbd5e0</span> <span class="kc">transparent</span><span class="p">;</span>
+</span><span class="hll">  <span class="k">content</span><span class="p">:</span> <span class="s2">&quot; &quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll"><span class="p">@</span><span class="k">keyframes</span> <span class="nt">spin</span> <span class="p">{</span>
+</span><span class="hll">  <span class="nt">0</span><span class="o">%</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">transform</span><span class="p">:</span> <span class="nb">rotate</span><span class="p">(</span><span class="mi">0</span><span class="kt">deg</span><span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">  <span class="nt">100</span><span class="o">%</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">transform</span><span class="p">:</span> <span class="nb">rotate</span><span class="p">(</span><span class="mi">360</span><span class="kt">deg</span><span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll"><span class="p">}</span>
+</span><span class="hll">
+</span><span class="p">@</span><span class="k">tailwind</span> <span class="nt">components</span><span class="p">;</span>
+<span class="p">@</span><span class="k">tailwind</span> <span class="nt">utilities</span><span class="p">;</span>
+</pre></div>
+
+<p>Now we’ll create a reusable <code>Loader</code> component that uses the new <code>loader</code> class in it:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/components/Loader/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kd">function</span> <span class="nx">Loader</span><span class="p">({</span> <span class="nx">centered</span> <span class="p">})</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="nt">div</span>
+      <span class="na">className</span><span class="o">=</span><span class="p">{</span><span class="nx">centered</span> <span class="o">&amp;&amp;</span> <span class="s2">&quot;flex-1 flex flex-col items-center justify-center&quot;</span><span class="p">}</span>
+    <span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;loader&quot;</span> <span class="p">/&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">Loader</span><span class="p">;</span>
+</pre></div>
+
+<p>Once the books have been fetched, we’ll need some way to display them so the user can browse the list of results. For that, we’ll add a <code>BookGrid</code> component:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/components/BookGrid/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kd">function</span> <span class="nx">BookGrid</span><span class="p">({</span> <span class="nx">books</span> <span class="p">})</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="nt">ul</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;gap-8 grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4&quot;</span><span class="p">&gt;</span>
+      <span class="p">{</span><span class="nx">books</span><span class="p">.</span><span class="nx">map</span><span class="p">(({</span> <span class="nx">authors</span><span class="p">,</span> <span class="nx">cover</span><span class="p">,</span> <span class="nx">id</span><span class="p">,</span> <span class="nx">title</span> <span class="p">})</span> <span class="p">=&gt;</span> <span class="p">(</span>
+        <span class="p">&lt;</span><span class="nt">li</span>
+          <span class="na">className</span><span class="o">=</span><span class="s">&quot;bg-white cursor-pointer flex flex-col justify-end p-4 shadow-xl&quot;</span>
+          <span class="na">key</span><span class="o">=</span><span class="p">{</span><span class="nx">id</span><span class="p">}</span>
+        <span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;flex flex-1 items-center justify-center&quot;</span><span class="p">&gt;</span>
+            <span class="p">{</span><span class="nx">cover</span> <span class="o">?</span> <span class="p">(</span>
+              <span class="p">&lt;</span><span class="nt">img</span> <span class="na">src</span><span class="o">=</span><span class="p">{</span><span class="nx">cover</span><span class="p">}</span> <span class="na">alt</span><span class="o">=</span><span class="p">{</span><span class="sb">`</span><span class="si">${</span><span class="nx">title</span><span class="si">}</span><span class="sb"> cover`</span><span class="p">}</span> <span class="p">/&gt;</span>
+            <span class="p">)</span> <span class="o">:</span> <span class="p">(</span>
+              <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;bg-gray-100 border border-solid border-gray-200 flex h-full justify-center items-center mt-4 py-4 px-2 w-full&quot;</span><span class="p">&gt;</span>
+                <span class="p">&lt;</span><span class="nt">span</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;italic text-center text-gray-600&quot;</span><span class="p">&gt;</span>
+                  Cover image unavailable
+                <span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+              <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+            <span class="p">)}</span>
+          <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;font-bold leading-tight mt-4 mb-2 hover:text-red-500&quot;</span><span class="p">&gt;</span>
+            <span class="p">{</span><span class="nx">title</span><span class="p">}</span>
+          <span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">p</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;leading-tight text-gray-600 text-sm&quot;</span><span class="p">&gt;</span>
+            <span class="p">{</span><span class="sb">`by </span><span class="si">${</span><span class="nx">authors</span><span class="p">.</span><span class="nx">map</span><span class="p">(</span><span class="nx">author</span> <span class="p">=&gt;</span> <span class="nx">author</span><span class="p">.</span><span class="nx">name</span><span class="p">).</span><span class="nx">join</span><span class="p">(</span><span class="s2">&quot;, &quot;</span><span class="p">)</span><span class="si">}</span><span class="sb">`</span><span class="p">}</span>
+          <span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">li</span><span class="p">&gt;</span>
+      <span class="p">))}</span>
+    <span class="p">&lt;/</span><span class="nt">ul</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">BookGrid</span><span class="p">;</span>
+</pre></div>
+
+<p>Lastly, we should display a notice if an error occurs while fetching the book data, so we’ll add a reusable <code>PageNotice</code> component as well:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/components/PageNotice/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kd">function</span> <span class="nx">PageNotice</span><span class="p">({</span> <span class="nx">text</span> <span class="p">})</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;flex-auto flex flex-col h-full justify-center text-center&quot;</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">p</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;text-gray-500 text-2xl&quot;</span><span class="p">&gt;{</span><span class="nx">text</span><span class="p">}&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">PageNotice</span><span class="p">;</span>
+</pre></div>
+
+<p>Now we can import all of the required components into the <code>Index</code> page component, along with the <code>GetBooks</code> query and the <code>useQuery</code> hook from Apollo Client:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/pages/Index/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">useQuery</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">GetBooks</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;../../graphql/queries&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="nx">BookGrid</span> <span class="nx">from</span> <span class="s2">&quot;../../components/BookGrid&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="nx">Button</span> <span class="nx">from</span> <span class="s2">&quot;../../components/Button&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="nx">Loader</span> <span class="nx">from</span> <span class="s2">&quot;../../components/Loader&quot;</span><span class="p">;</span>
+</span><span class="kr">import</span> <span class="nx">MainLayout</span> <span class="nx">from</span> <span class="s2">&quot;../../components/MainLayout&quot;</span><span class="p">;</span>
+<span class="hll"><span class="kr">import</span> <span class="nx">PageNotice</span> <span class="nx">from</span> <span class="s2">&quot;../../components/PageNotice&quot;</span><span class="p">;</span>
+</span>
+<span class="c1">// ...</span>
+</pre></div>
+
+<p>Apollo Client 3 provides a hooks-based API to send GraphQL requests, and <code>useQuery</code> is the hook that we’ll use for all <code>query</code> root operations. At the top of the <code>Index</code> component, we’ll call the <code>useQuery</code> hook and pass in the <code>GetBooks</code> query as the first argument followed by a second object argument with a single <code>variables</code> key to capture the values we want to send along for the <code>$limit</code> and <code>$page</code> variables (previously, we set these values using the Variables panel of Explorer):</p>
+<p></p>
+<div class="code-context">
+<p>client/src/pages/Index/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kd">function</span> <span class="nx">Index</span><span class="p">()</span> <span class="p">{</span>
+<span class="hll">  <span class="kr">const</span> <span class="p">{</span> <span class="nx">data</span><span class="p">,</span> <span class="nx">error</span><span class="p">,</span> <span class="nx">loading</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">useQuery</span><span class="p">(</span><span class="nx">GetBooks</span><span class="p">,</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">variables</span><span class="o">:</span> <span class="p">{</span> <span class="nx">limit</span><span class="o">:</span> <span class="mi">12</span><span class="p">,</span> <span class="nx">page</span><span class="o">:</span> <span class="mi">1</span> <span class="p">}</span>
+</span><span class="hll">  <span class="p">});</span>
+</span><span class="hll">
+</span>  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">Index</span><span class="p">;</span>
+</pre></div>
+
+<p>Next, we’ll update what’s get returned from this component and do some conditional rendering based on the state of the query when it’s either <code>loading</code>, or we received some <code>data</code> from the API that we can display, or an <code>error</code> occurred at some point in the request:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/pages/Index/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kd">function</span> <span class="nx">Index</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  
+<span class="hll">  <span class="kd">let</span> <span class="nx">content</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="hll">  <span class="k">if</span> <span class="p">(</span><span class="nx">loading</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">data</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">content</span> <span class="o">=</span> <span class="p">&lt;</span><span class="nt">Loader</span> <span class="na">centered</span> <span class="p">/&gt;;</span>
+</span><span class="hll">  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">data</span><span class="o">?</span><span class="p">.</span><span class="nx">books</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="p">{</span>
+</span><span class="hll">      <span class="nx">pageInfo</span><span class="o">:</span> <span class="p">{</span> <span class="nx">hasNextPage</span> <span class="p">},</span>
+</span><span class="hll">      <span class="nx">results</span>
+</span><span class="hll">    <span class="p">}</span> <span class="o">=</span> <span class="nx">data</span><span class="p">.</span><span class="nx">books</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="nx">content</span> <span class="o">=</span> <span class="p">(</span>
+</span><span class="hll">      <span class="p">&lt;&gt;</span>
+</span><span class="hll">        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;mb-8&quot;</span><span class="p">&gt;</span>
+</span><span class="hll">          <span class="p">&lt;</span><span class="nt">BookGrid</span> <span class="na">books</span><span class="o">=</span><span class="p">{</span><span class="nx">results</span><span class="p">}</span> <span class="p">/&gt;</span>
+</span><span class="hll">        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span class="hll">        <span class="p">{</span><span class="nx">hasNextPage</span> <span class="o">&amp;&amp;</span> <span class="p">(</span>
+</span><span class="hll">          <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;flex justify-center&quot;</span><span class="p">&gt;</span>
+</span><span class="hll">            <span class="p">&lt;</span><span class="nt">Button</span> <span class="na">text</span><span class="o">=</span><span class="s">&quot;Load More&quot;</span> <span class="na">type</span><span class="o">=</span><span class="s">&quot;button&quot;</span> <span class="p">/&gt;</span>
+</span><span class="hll">          <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span class="hll">        <span class="p">)}</span>
+</span><span class="hll">      <span class="p">&lt;/&gt;</span>
+</span><span class="hll">    <span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">error</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">content</span> <span class="o">=</span> <span class="p">&lt;</span><span class="nt">PageNotice</span> <span class="na">text</span><span class="o">=</span><span class="s">&quot;Book list is unavailable. Please try again.&quot;</span> <span class="p">/&gt;;</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">  return <span class="p">&lt;</span><span class="nt">MainLayout</span><span class="p">&gt;{</span><span class="nx">content</span><span class="p">}&lt;/</span><span class="nt">MainLayout</span><span class="p">&gt;;</span>
+</span><span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">Index</span><span class="p">;</span>
+</pre></div>
+
+<p>With this code in place, the index page will now render a book list with the first 12 results displayed in a grid:</p>
+<p><img src="../../images/screenshots/react-app-book-list.png" alt="Book list rendered on the index page" /><br />
+</p>
+<p>For now, the “Load More” button will be a placeholder, but we’ll update this component to fetch additional pages of results in Chapter 9 (where we’ll also use the <code>page</code> field fetched with the query).</p>
+<h2 id="send-the-jwt-in-a-cookie">Send the JWT in a Cookie</h2>
+<p>Now that we have Apollo Client configured and we can successfully query data from a GraphQL API, the balance of this chapter will focus primarily on handling authentication on the client side. We previously added <code>login</code> and <code>signUp</code> mutations that create a signed JWT to send back in the response so that a client can then include that JWT with subsequent requests that require authentication. When using a GraphQL IDE to test an API, we had to add that token manually as the request’s <code>Authorization</code> header, and that value was persisted in the interface until we removed it or refreshed the page. In a React application, we’ll need to take a different approach to persist the returned token.</p>
+<p>Storing JWTs in local storage is a dangerous practice and would leave Bibliotech exposed to cross-site scripting (XSS) attacks.<a href="#fn1" class="footnote-ref" id="fnref1" role="doc-noteref"><sup>1</sup></a> Many tutorials use local storage to persist JWTs because it’s quick and easy. These tutorials sometimes call out that you wouldn’t want to do this in a real production application, but it would be instructional here if we lay a foundation for handling JWTs in a more secure way. That leaves us with two options:</p>
+<ol type="1">
+<li>Persist the token <strong>in-memory</strong> (and specifically for our purposes, in React state) and then retrieve the token value from memory to include as an <code>Authorization</code> header with each request sent from Apollo Client</li>
+<li>Set the token as an <strong>HttpOnly cookie</strong> and include the cookie with each request sent to the API from Apollo Client</li>
+</ol>
+<p>Ideally, we would implement the first option because this would be the securest approach, but a basic implementation of in-memory persistence has a serious downside in that a user would need to re-authenticate every time they reload the page. To avoid this, we would need to engineer a more advanced solution that uses refresh tokens<a href="#fn2" class="footnote-ref" id="fnref2" role="doc-noteref"><sup>2</sup></a> to re-authenticate a user automatically between page loads if their session is still valid. Many third-party authentication services take this approach in their client SDKs, further highlighting that it’s worthwhile to investigate using such a service in a real application. However, rolling our own refresh token system is outside the scope of this book.</p>
+<p>So given these practical considerations, that leaves us with the second option to use an HttpOnly cookie. Using an HttpOnly cookie means that the cookie will only be sent with HTTP requests and won’t be accessible to any scripts running in the browser. This is an important safety feature but it’s important to note that it won’t completely protect us from more advanced XSS attacks, but a Content Security Policy (CSP)<a href="#fn3" class="footnote-ref" id="fnref3" role="doc-noteref"><sup>3</sup></a> can provide some additional protection against this. Cookies are also vulnerable to cross-site request forgery (CSRF) attacks, but creating and including an anti-CSRF token with requests would help mitigate this risk. Additionally, in production, it would also be a good idea to set the “Secure” attribute on the cookie so that it will only be sent with encrypted requests using the HTTPS protocol and also configuring the “SameSite” attribute to be as strict as possible (by default, the SameSite attribute’s value will be “Lax” for cookies that don’t have the Secure attribute set).</p>
+<p>It may seem that there are many potential pitfalls when using cookies and that there would be considerable overhead to use them safely in production (both of these observations are correct!). That said, choosing this option will at least provide a middle ground between declaring open season on our JWTs by keeping them in local storage and spending several more chapters building out an in-memory, client-side authentication system that can handle fetching refresh tokens between page loads. For brevity’s sake, we won’t be augmenting the cookie implementation in our development environment with a CSP, anti-CSRF tokens, or configuring the Secure or SameSite attributes. Again, these concerns are outside of the scope of this GraphQL-focused book, so please consider doing further research in these topics. But the code that we do write in the sections that follow will provide an initial foundation for hardening how the JWT is handled in a real production environment.</p>
+<p>Alright, the security public service announcement is over now so let’s get back to the task at hand. As our first order of business, we need to make some updates to the server. When a user logs in or signs up we’ll need to capture the value of the token that’s generated in these mutations and add it to the <code>Set-Cookie</code> header in the response. This will pose a bit of a challenge given our current set-up because mutations don’t have access to the Express <code>res</code> object, which is where we’ll need to set the cookie for it to be delivered with the response. There are a couple of different ways we can solve this problem. The first would involve adding the entire <code>res</code> object directly to the Apollo Server <code>context</code> so that it’s accessible in every resolver, but this seems a bit heavy-handed. Another more targeted approach would be to use a custom <a href="https://www.apollographql.com/docs/apollo-server/integrations/plugins/">Apollo Server plugin</a>.</p>
+<p>The Apollo Server plugin API allows us to respond to events at various points in the lifecycle of a request to a GraphQL API by leveraging a series of hooks. Specifically, we’ll use the <code>willSendResponse</code> hook to intercept the output of a <code>login</code> or <code>signUp</code> mutation at the point immediately before the response is delivered to the client. We will then get the value from the <code>token</code> field in that output to use as the cookie value and attach the cookie to the response. Before creating the plugin, we’ll need to install a new library to assist with serializing the cookie data with its attributes. We’ll Jump back over to the <code>server</code> directory and install this package now:</p>
+<div class="highlight"><pre><span></span>npm i cookie@0.4.1
+</pre></div>
+
+<p>Next, we’ll create a new directory called <code>plugins</code> in <code>server/src/graphql</code> and add a <code>cookieHeaderPlugin.js</code> file to it with the following code:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/plugins/cookieHeaderPlugin.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="nx">cookie</span> <span class="nx">from</span> <span class="s2">&quot;cookie&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">cookieHeaderPlugin</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="nx">requestDidStart</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="p">{</span>
+      <span class="nx">willSendResponse</span><span class="p">({</span> <span class="nx">operation</span><span class="p">,</span> <span class="nx">response</span> <span class="p">})</span> <span class="p">{</span>
+        <span class="c1">// Do something to the response before sending it here...</span>
+      <span class="p">}</span>
+    <span class="p">};</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">cookieHeaderPlugin</span><span class="p">;</span>
+</pre></div>
+
+<p>An Apollo Server plugin can tap into two high-level events: <code>serverWillStart</code> for server-related events and <code>requestDidStart</code> for request-related events. We’ll choose <code>requestDidStart</code> here, and then return an object containing the request-specific <code>willSendResponse</code> method where we will execute the code that intercepts the <code>login</code> and <code>signUp</code> mutations.</p>
+<p>The <code>willSendResponse</code> method has access to a single <code>requestContext</code> parameter from which we can destructure the <code>operation</code> object (so we can check if we’re dealing with the right kind of mutation) and the <code>response</code> (so we can get the token and set the cookie). After verifying that the operation is a mutation, we’ll have to look inside the field selection set to see if it’s a <code>login</code> or <code>signUp</code> mutation and return from the function if it’s not. Otherwise, we’ll proceed with getting the <code>token</code> field value in the response and adding it as an HttpOnly cookie named <code>token</code>:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/plugins/cookieHeaderPlugin.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="nx">cookie</span> <span class="nx">from</span> <span class="s2">&quot;cookie&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">cookieHeaderPlugin</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="nx">requestDidStart</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="p">{</span>
+      <span class="nx">willSendResponse</span><span class="p">({</span> <span class="nx">operation</span><span class="p">,</span> <span class="nx">response</span> <span class="p">})</span> <span class="p">{</span>
+<span class="hll">        <span class="k">if</span> <span class="p">(</span><span class="nx">operation</span><span class="o">?</span><span class="p">.</span><span class="nx">operation</span> <span class="o">===</span> <span class="s2">&quot;mutation&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">          <span class="kr">const</span> <span class="nx">authMutation</span> <span class="o">=</span> <span class="nx">operation</span><span class="p">.</span><span class="nx">selectionSet</span><span class="p">.</span><span class="nx">selections</span><span class="p">.</span><span class="nx">find</span><span class="p">(</span>
+</span><span class="hll">            <span class="nx">selection</span> <span class="p">=&gt;</span>
+</span><span class="hll">              <span class="nx">selection</span><span class="p">.</span><span class="nx">name</span><span class="p">.</span><span class="nx">value</span> <span class="o">===</span> <span class="s2">&quot;login&quot;</span> <span class="o">||</span>
+</span><span class="hll">              <span class="nx">selection</span><span class="p">.</span><span class="nx">name</span><span class="p">.</span><span class="nx">value</span> <span class="o">===</span> <span class="s2">&quot;signUp&quot;</span>
+</span><span class="hll">          <span class="p">);</span>
+</span><span class="hll">
+</span><span class="hll">          <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">authMutation</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">            <span class="k">return</span><span class="p">;</span>
+</span><span class="hll">          <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">          <span class="kr">const</span> <span class="nx">fieldName</span> <span class="o">=</span> <span class="nx">authMutation</span><span class="p">.</span><span class="nx">name</span><span class="p">.</span><span class="nx">value</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="hll">          <span class="k">if</span> <span class="p">(</span><span class="nx">response</span><span class="p">.</span><span class="nx">data</span><span class="o">?</span><span class="p">.[</span><span class="nx">fieldName</span><span class="p">].</span><span class="nx">token</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">            <span class="kr">const</span> <span class="nx">cookieString</span> <span class="o">=</span> <span class="nx">cookie</span><span class="p">.</span><span class="nx">serialize</span><span class="p">(</span>
+</span><span class="hll">              <span class="s2">&quot;token&quot;</span><span class="p">,</span>
+</span><span class="hll">              <span class="nx">response</span><span class="p">.</span><span class="nx">data</span><span class="p">[</span><span class="nx">fieldName</span><span class="p">].</span><span class="nx">token</span><span class="p">,</span>
+</span><span class="hll">              <span class="p">{</span> <span class="nx">httpOnly</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span> <span class="nx">maxAge</span><span class="o">:</span> <span class="mi">86400</span> <span class="p">}</span>
+</span><span class="hll">            <span class="p">);</span>
+</span><span class="hll">            <span class="nx">response</span><span class="p">.</span><span class="nx">http</span><span class="p">.</span><span class="nx">headers</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="s2">&quot;Set-Cookie&quot;</span><span class="p">,</span> <span class="nx">cookieString</span><span class="p">);</span>
+</span><span class="hll">          <span class="p">}</span>
+</span><span class="hll">        <span class="p">}</span>
+</span>      <span class="p">}</span>
+    <span class="p">};</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">cookieHeaderPlugin</span><span class="p">;</span>
+</pre></div>
+
+<div class="boxout">
+<p>Note that the <code>maxAge</code> of the cookie is equivalent to one day in seconds to match the lifespan of the signed JWT that was created in the mutation. The long lifespan of the token and cookie will make things easier during development, but it would be more secure to use a shorter lifespan and refresh the token behind the scenes while a user’s session is valid.</p>
+</div>
+<p>To add the new plugin, we’ll need to update the top-level <code>index.js</code> file on the server to include a <code>plugins</code> option in <code>ApolloServer</code> and then add the <code>cookieHeaderPlugin</code> to an array as the option’s value (we use an array because we can add multiple plugins if needed):</p>
+<p></p>
+<div class="code-context">
+<p>server/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="hll"><span class="kr">import</span> <span class="nx">cookieHeaderPlugin</span> <span class="nx">from</span> <span class="s2">&quot;./graphql/plugins/cookieHeaderPlugin.js&quot;</span><span class="p">;</span>
+</span><span class="c1">// ...</span>
+
+<span class="kr">const</span> <span class="nx">server</span> <span class="o">=</span> <span class="k">new</span> <span class="nx">ApolloServer</span><span class="p">({</span>
+  <span class="c1">// ...</span>
+  <span class="nx">context</span><span class="o">:</span> <span class="p">({</span> <span class="nx">req</span> <span class="p">})</span> <span class="p">=&gt;</span> <span class="p">{</span>
+    <span class="kr">const</span> <span class="nx">user</span> <span class="o">=</span> <span class="nx">req</span><span class="p">.</span><span class="nx">user</span> <span class="o">||</span> <span class="kc">null</span><span class="p">;</span>
+    <span class="k">return</span> <span class="p">{</span> <span class="nx">user</span> <span class="p">};</span>
+<span class="hll">  <span class="p">},</span>
+</span><span class="hll">  <span class="nx">plugins</span><span class="o">:</span> <span class="p">[</span><span class="nx">cookieHeaderPlugin</span><span class="p">]</span>
+</span><span class="p">});</span>
+
+<span class="c1">// ...</span>
+</pre></div>
+
+<p>Using a cookie, we also need to do some extra configuration to the Express JWT middleware. By default, this middleware will look for a JWT in the <code>Authorization</code> header. However, we now need the middleware to check this header or the <code>token</code> cookie. To keep things organized, let’s create a new <code>tokens.js</code> file in <code>server/src/utils</code> that contains this code:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/utils/tokens.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">export</span> <span class="kd">function</span> <span class="nx">getToken</span><span class="p">(</span><span class="nx">req</span><span class="p">)</span> <span class="p">{</span>
+  <span class="k">if</span> <span class="p">(</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nx">headers</span><span class="p">.</span><span class="nx">authorization</span> <span class="o">&amp;&amp;</span>
+    <span class="nx">req</span><span class="p">.</span><span class="nx">headers</span><span class="p">.</span><span class="nx">authorization</span><span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="mi">0</span><span class="p">]</span> <span class="o">===</span> <span class="s2">&quot;Bearer&quot;</span>
+  <span class="p">)</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="nx">req</span><span class="p">.</span><span class="nx">headers</span><span class="p">.</span><span class="nx">authorization</span><span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="s2">&quot; &quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">];</span>
+  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">req</span><span class="p">.</span><span class="nx">headers</span><span class="p">.</span><span class="nx">cookie</span><span class="p">)</span> <span class="p">{</span>
+    <span class="kr">const</span> <span class="nx">tokenCookie</span> <span class="o">=</span> <span class="nx">req</span><span class="p">.</span><span class="nx">headers</span><span class="p">.</span><span class="nx">cookie</span>
+      <span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="s2">&quot;; &quot;</span><span class="p">)</span>
+      <span class="p">.</span><span class="nx">find</span><span class="p">(</span><span class="nx">cookie</span> <span class="p">=&gt;</span> <span class="nx">cookie</span><span class="p">.</span><span class="nx">includes</span><span class="p">(</span><span class="s2">&quot;token&quot;</span><span class="p">));</span>
+
+    <span class="k">return</span> <span class="nx">tokenCookie</span> <span class="o">?</span> <span class="nx">tokenCookie</span><span class="p">.</span><span class="nx">split</span><span class="p">(</span><span class="s2">&quot;=&quot;</span><span class="p">)[</span><span class="mi">1</span><span class="p">]</span> <span class="o">:</span> <span class="kc">null</span><span class="p">;</span>
+  <span class="p">}</span>
+  <span class="k">return</span> <span class="kc">null</span><span class="p">;</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>Let’s also move the callback that handles invalid tokens in this middleware into a dedicated function in the <code>tokens.js</code> file as well now:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/utils/tokens.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+<span class="hll">
+</span><span class="hll"><span class="kr">export</span> <span class="kd">function</span> <span class="nx">handleInvalidToken</span><span class="p">(</span><span class="nx">err</span><span class="p">,</span> <span class="nx">req</span><span class="p">,</span> <span class="nx">res</span><span class="p">,</span> <span class="nx">next</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">  <span class="k">if</span> <span class="p">(</span><span class="nx">err</span><span class="p">.</span><span class="nx">code</span> <span class="o">===</span> <span class="s2">&quot;invalid_token&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">return</span> <span class="nx">next</span><span class="p">();</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">  <span class="k">return</span> <span class="nx">next</span><span class="p">(</span><span class="nx">err</span><span class="p">);</span>
+</span><span class="hll"><span class="p">}</span>
+</span></pre></div>
+
+<p>Now can import the two functions and update the <code>expressJwt</code> middleware to use them:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">getToken</span><span class="p">,</span> <span class="nx">handleInvalidToken</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;./utils/tokens.js&quot;</span><span class="p">;</span>
+</span><span class="c1">// ...</span>
+
+<span class="nx">app</span><span class="p">.</span><span class="nx">use</span><span class="p">(</span>
+  <span class="nx">expressJwt</span><span class="p">({</span>
+    <span class="nx">secret</span><span class="o">:</span> <span class="nx">process</span><span class="p">.</span><span class="nx">env</span><span class="p">.</span><span class="nx">JWT_SECRET</span><span class="p">,</span>
+    <span class="nx">algorithms</span><span class="o">:</span> <span class="p">[</span><span class="s2">&quot;HS256&quot;</span><span class="p">],</span>
+<span class="hll">    <span class="nx">credentialsRequired</span><span class="o">:</span> <span class="kc">false</span><span class="p">,</span>
+</span><span class="hll">    <span class="nx">getToken</span>
+</span>  <span class="p">}),</span>
+<span class="hll">  <span class="nx">handleInvalidToken</span>
+</span><span class="p">);</span>
+
+<span class="c1">// ...</span>
+</pre></div>
+
+<p>Before jumping back to the client, there’s one more thing we need to consider: what happens when a user logs out of the application? For our purposes, logging a user out of Bibliotech will mean invalidating their HttpOnly cookie, and this can only be done on the server side. To handle logout requests from the client, we’ll add a <code>logout</code> mutation to API:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/typeDefs.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;apollo-server-express&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">typeDefs</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  # ...</span>
+
+<span class="sb">  type Mutation {</span>
+<span class="sb">    # ...</span>
+<span class="hll"><span class="sb">    &quot;Logs an authenticated user out.&quot;</span>
+</span><span class="hll"><span class="sb">    logout: Boolean!</span>
+</span><span class="sb">    # ...</span>
+<span class="sb">  }</span>
+<span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">typeDefs</span><span class="p">;</span>
+</pre></div>
+
+<p>The <code>logout</code> resolver will simply return <code>true</code> because cookie invalidation will need to happen in the Apollo Server plugin we previously created:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/resolvers.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kr">const</span> <span class="nx">resolvers</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+  <span class="nx">Mutation</span><span class="o">:</span> <span class="p">{</span>
+    <span class="c1">// ...</span>
+<span class="hll">    <span class="nx">logout</span><span class="p">(</span><span class="nx">root</span><span class="p">,</span> <span class="nx">args</span><span class="p">,</span> <span class="nx">context</span><span class="p">,</span> <span class="nx">info</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">return</span> <span class="kc">true</span><span class="p">;</span>
+</span><span class="hll">    <span class="p">},</span>
+</span>    <span class="c1">// ...</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">resolvers</span><span class="p">;</span>
+</pre></div>
+
+<p>Now we’ll update the <code>cookieHeaderPlugin</code> to intercept any <code>logout</code> mutation too and invalidate the <code>token</code> cookie by creating a new cookie with an expiration date in the past:</p>
+<p></p>
+<div class="code-context">
+<p>server/src/graphql/plugins/cookieHeaderPlugin.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="nx">cookie</span> <span class="nx">from</span> <span class="s2">&quot;cookie&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">cookieHeaderPlugin</span> <span class="o">=</span> <span class="p">{</span>
+  <span class="nx">requestDidStart</span><span class="p">()</span> <span class="p">{</span>
+    <span class="k">return</span> <span class="p">{</span>
+      <span class="nx">willSendResponse</span><span class="p">({</span> <span class="nx">operation</span><span class="p">,</span> <span class="nx">response</span> <span class="p">})</span> <span class="p">{</span>
+        <span class="k">if</span> <span class="p">(</span><span class="nx">operation</span><span class="p">.</span><span class="nx">operation</span> <span class="o">===</span> <span class="s2">&quot;mutation&quot;</span><span class="p">)</span> <span class="p">{</span>
+          <span class="kr">const</span> <span class="nx">authMutation</span> <span class="o">=</span> <span class="nx">operation</span><span class="p">.</span><span class="nx">selectionSet</span><span class="p">.</span><span class="nx">selections</span><span class="p">.</span><span class="nx">find</span><span class="p">(</span>
+            <span class="nx">selection</span> <span class="p">=&gt;</span>
+              <span class="nx">selection</span><span class="p">.</span><span class="nx">name</span><span class="p">.</span><span class="nx">value</span> <span class="o">===</span> <span class="s2">&quot;login&quot;</span> <span class="o">||</span>
+<span class="hll">              <span class="nx">selection</span><span class="p">.</span><span class="nx">name</span><span class="p">.</span><span class="nx">value</span> <span class="o">===</span> <span class="s2">&quot;logout&quot;</span> <span class="o">||</span>
+</span>              <span class="nx">selection</span><span class="p">.</span><span class="nx">name</span><span class="p">.</span><span class="nx">value</span> <span class="o">===</span> <span class="s2">&quot;signUp&quot;</span>
+          <span class="p">);</span>
+
+          <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">authMutation</span><span class="p">)</span> <span class="p">{</span>
+            <span class="k">return</span><span class="p">;</span>
+          <span class="p">}</span>
+
+          <span class="kr">const</span> <span class="nx">fieldName</span> <span class="o">=</span> <span class="nx">authMutation</span><span class="p">.</span><span class="nx">name</span><span class="p">.</span><span class="nx">value</span><span class="p">;</span>
+
+<span class="hll">          <span class="k">if</span> <span class="p">(</span><span class="nx">fieldName</span> <span class="o">===</span> <span class="s2">&quot;logout&quot;</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">            <span class="kr">const</span> <span class="nx">cookieString</span> <span class="o">=</span> <span class="nx">cookie</span><span class="p">.</span><span class="nx">serialize</span><span class="p">(</span><span class="s2">&quot;token&quot;</span><span class="p">,</span> <span class="s2">&quot;&quot;</span><span class="p">,</span> <span class="p">{</span>
+</span><span class="hll">              <span class="nx">httpOnly</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span>
+</span><span class="hll">              <span class="nx">expires</span><span class="o">:</span> <span class="k">new</span> <span class="nb">Date</span><span class="p">(</span><span class="mi">1</span><span class="p">)</span>
+</span><span class="hll">            <span class="p">});</span>
+</span><span class="hll">            <span class="nx">response</span><span class="p">.</span><span class="nx">http</span><span class="p">.</span><span class="nx">headers</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="s2">&quot;Set-Cookie&quot;</span><span class="p">,</span> <span class="nx">cookieString</span><span class="p">);</span>
+</span><span class="hll">          <span class="p">}</span> <span class="k">else</span> <span class="p">{</span>
+</span>            <span class="k">if</span> <span class="p">(</span><span class="nx">response</span><span class="p">.</span><span class="nx">data</span><span class="o">?</span><span class="p">.[</span><span class="nx">fieldName</span><span class="p">].</span><span class="nx">token</span><span class="p">)</span> <span class="p">{</span>
+              <span class="kr">const</span> <span class="nx">cookieString</span> <span class="o">=</span> <span class="nx">cookie</span><span class="p">.</span><span class="nx">serialize</span><span class="p">(</span>
+                <span class="s2">&quot;token&quot;</span><span class="p">,</span>
+                <span class="nx">response</span><span class="p">.</span><span class="nx">data</span><span class="p">[</span><span class="nx">fieldName</span><span class="p">].</span><span class="nx">token</span><span class="p">,</span>
+                <span class="p">{</span> <span class="nx">httpOnly</span><span class="o">:</span> <span class="kc">true</span><span class="p">,</span> <span class="nx">maxAge</span><span class="o">:</span> <span class="mi">86400</span> <span class="p">}</span>
+              <span class="p">);</span>
+              <span class="nx">response</span><span class="p">.</span><span class="nx">http</span><span class="p">.</span><span class="nx">headers</span><span class="p">.</span><span class="nx">set</span><span class="p">(</span><span class="s2">&quot;Set-Cookie&quot;</span><span class="p">,</span> <span class="nx">cookieString</span><span class="p">);</span>
+            <span class="p">}</span>
+<span class="hll">          <span class="p">}</span>
+</span>        <span class="p">}</span>
+      <span class="p">}</span>
+    <span class="p">};</span>
+  <span class="p">}</span>
+<span class="p">};</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">cookieHeaderPlugin</span><span class="p">;</span>
+</pre></div>
+
+<p>With this new and improved server code in place, we’re now fully equipped to issue and handle the <code>token</code> cookie, so we’re ready to jump back to the client side.</p>
+<h2 id="log-in-or-register-a-new-user-from-the-client">Log In or Register a New User from the Client</h2>
+<p>For our cookie to be set in the browser and included with each subsequent request to our GraphQL API, we need to run the React application on the same port as the GraphQL API. We can easily configure this with Create React App by setting a <code>proxy</code> property in the client’s <code>package.json</code> file with a value of <code>http://localhost:4000</code>:</p>
+<p></p>
+<div class="code-context">
+<p>client/package.json</p>
+</div>
+<div class="highlight"><pre><span></span><span class="p">{</span>
+  <span class="s2">&quot;name&quot;</span><span class="o">:</span> <span class="s2">&quot;client&quot;</span><span class="p">,</span>
+  <span class="s2">&quot;version&quot;</span><span class="o">:</span> <span class="s2">&quot;0.1.0&quot;</span><span class="p">,</span>
+<span class="hll">  <span class="s2">&quot;proxy&quot;</span><span class="o">:</span> <span class="s2">&quot;http://localhost:4000&quot;</span><span class="p">,</span>
+</span>  <span class="c1">// ...</span>
+<span class="p">}</span>
+</pre></div>
+
+<p>We must also update the <code>REACT_APP_GRAPHQL_ENDPOINT</code> variable to use port 3000 in the <code>.env</code> file:</p>
+<p></p>
+<div class="code-context">
+<p>client/.env</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll">REACT_APP_GRAPHQL_ENDPOINT=http://localhost:3000/graphql
+</span></pre></div>
+
+<p>Next, we’re going to set up a mutation to log existing users in first and then adapt this approach to support user sign-ups afterward. We’ll begin by creating a <code>mutations.js</code> file in <code>client/src/graphql</code> and adding a <code>Login</code> mutation to it:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/mutations.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="kr">const</span> <span class="nx">Login</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  mutation Login($password: String!, $username: String!) {</span>
+<span class="sb">    login(password: $password, username: $username) {</span>
+<span class="sb">      viewer {</span>
+<span class="sb">        id</span>
+<span class="sb">        email</span>
+<span class="sb">        name</span>
+<span class="sb">        username</span>
+<span class="sb">      }</span>
+<span class="sb">      token</span>
+<span class="sb">    }</span>
+<span class="sb">  }</span>
+<span class="sb">`</span><span class="p">;</span>
+</pre></div>
+
+<p>In the <code>Login</code> page component, we’ll import the mutation as <code>LoginMutation</code> to avoid a name conflict. We’ll also import the <code>useHistory</code> hook from React Router so we can push a user to the <code>/home</code> route after successfully authenticating. Lastly, we’ll need the <code>useMutation</code> hook from Apollo Client. The <code>useMutation</code> works much like the <code>useQuery</code> hook does, but this hook returns an array where the first item is a function that can be used to send the mutation when needed. In the <code>Login</code> page component, the event that will trigger the mutation is a form submission.</p>
+<p>The second item in the array is an object like the one we destructured directly from the <code>useQuery</code> hook previously, and it contains information about the state of the operation. Also note that in addition to passing in the mutation operation into <code>useMutation</code>, we also pass an <code>onCompleted</code> option to redirect the user to the homepage after a successful mutation. To send the value of the username and password inputs as mutation variables, we must also convert them to <a href="https://reactjs.org/docs/forms.html#controlled-components">controlled components</a> using the <code>useState</code> hook:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/components/Login/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">useHistory</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react-router-dom&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">useMutation</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+</span><span class="kr">import</span> <span class="p">{</span> <span class="nx">useState</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react&quot;</span><span class="p">;</span>
+
+<span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">Login</span> <span class="nx">as</span> <span class="nx">LoginMutation</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;../../graphql/mutations&quot;</span><span class="p">;</span>
+</span><span class="c1">// ...</span>
+
+<span class="kd">function</span> <span class="nx">Login</span><span class="p">()</span> <span class="p">{</span>
+  <span class="kr">const</span> <span class="p">[</span><span class="nx">isMember</span><span class="p">,</span> <span class="nx">setIsMember</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+<span class="hll">  <span class="kr">const</span> <span class="p">[</span><span class="nx">password</span><span class="p">,</span> <span class="nx">setPassword</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">);</span>
+</span><span class="hll">  <span class="kr">const</span> <span class="p">[</span><span class="nx">username</span><span class="p">,</span> <span class="nx">setUsername</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">);</span>
+</span><span class="hll">  <span class="kr">const</span> <span class="nx">history</span> <span class="o">=</span> <span class="nx">useHistory</span><span class="p">();</span>
+</span><span class="hll">  
+</span><span class="hll">  <span class="kr">const</span> <span class="nx">onCompleted</span> <span class="o">=</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">history</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="s2">&quot;/home&quot;</span><span class="p">);</span>
+</span><span class="hll">  <span class="p">};</span>
+</span><span class="hll">
+</span><span class="hll">  <span class="kr">const</span> <span class="p">[</span><span class="nx">login</span><span class="p">,</span> <span class="p">{</span> <span class="nx">error</span><span class="p">,</span> <span class="nx">loading</span> <span class="p">}]</span> <span class="o">=</span> <span class="nx">useMutation</span><span class="p">(</span><span class="nx">LoginMutation</span><span class="p">,</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">onCompleted</span>
+</span><span class="hll">  <span class="p">});</span>
+</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;bg-gray-50 flex items-center justify-center min-h-screen&quot;</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;bg-white shadow p-8 max-w-sm w-10/12&quot;</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">h1</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;mb-4 text-2xl&quot;</span><span class="p">&gt;</span>Welcome to Bibliotech<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+<span class="hll">        <span class="p">&lt;</span><span class="nt">form</span>
+</span><span class="hll">          <span class="na">onSubmit</span><span class="o">=</span><span class="p">{</span><span class="nx">async</span> <span class="nx">event</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">            <span class="nx">event</span><span class="p">.</span><span class="nx">preventDefault</span><span class="p">();</span>
+</span><span class="hll">            <span class="nx">await</span> <span class="nx">login</span><span class="p">({</span> <span class="nx">variables</span><span class="o">:</span> <span class="p">{</span> <span class="nx">password</span><span class="p">,</span> <span class="nx">username</span> <span class="p">}</span> <span class="p">}).</span><span class="k">catch</span><span class="p">(</span><span class="nx">err</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">              <span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="nx">err</span><span class="p">);</span>
+</span><span class="hll">            <span class="p">});</span>
+</span><span class="hll">          <span class="p">}}</span>
+</span><span class="hll">        <span class="p">&gt;</span>
+</span>          <span class="p">&lt;</span><span class="nt">TextInput</span>
+            <span class="na">className</span><span class="o">=</span><span class="s">&quot;mb-4&quot;</span>
+            <span class="na">hiddenLabel</span>
+            <span class="na">id</span><span class="o">=</span><span class="s">&quot;username&quot;</span>
+            <span class="na">inputWidthClass</span><span class="o">=</span><span class="s">&quot;w-full&quot;</span>
+            <span class="na">label</span><span class="o">=</span><span class="s">&quot;Username&quot;</span>
+<span class="hll">            <span class="na">onChange</span><span class="o">=</span><span class="p">{</span><span class="nx">event</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">              <span class="nx">setUsername</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">target</span><span class="p">.</span><span class="nx">value</span><span class="p">);</span>
+</span><span class="hll">            <span class="p">}}</span>
+</span>            <span class="na">placeholder</span><span class="o">=</span><span class="s">&quot;Your username&quot;</span>
+            <span class="na">type</span><span class="o">=</span><span class="s">&quot;text&quot;</span>
+<span class="hll">            <span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">username</span><span class="p">}</span>
+</span>          <span class="p">/&gt;</span>
+          <span class="p">{</span><span class="cm">/* ... */</span><span class="p">}</span>
+          <span class="p">&lt;</span><span class="nt">TextInput</span>
+            <span class="na">className</span><span class="o">=</span><span class="s">&quot;mb-8&quot;</span>
+            <span class="na">hiddenLabel</span>
+            <span class="na">id</span><span class="o">=</span><span class="s">&quot;password&quot;</span>
+            <span class="na">inputWidthClass</span><span class="o">=</span><span class="s">&quot;w-full&quot;</span>
+            <span class="na">label</span><span class="o">=</span><span class="s">&quot;Password&quot;</span>
+<span class="hll">            <span class="na">onChange</span><span class="o">=</span><span class="p">{</span><span class="nx">event</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">              <span class="nx">setPassword</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">target</span><span class="p">.</span><span class="nx">value</span><span class="p">);</span>
+</span><span class="hll">            <span class="p">}}</span>
+</span>            <span class="na">placeholder</span><span class="o">=</span><span class="s">&quot;Your password&quot;</span>
+            <span class="na">type</span><span class="o">=</span><span class="s">&quot;password&quot;</span>
+<span class="hll">            <span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">password</span><span class="p">}</span>
+</span>          <span class="p">/&gt;</span>
+          <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;flex items-center&quot;</span><span class="p">&gt;</span>
+            <span class="p">&lt;</span><span class="nt">Button</span>
+              <span class="na">className</span><span class="o">=</span><span class="s">&quot;mr-2&quot;</span>
+<span class="hll">              <span class="na">disabled</span><span class="o">=</span><span class="p">{</span><span class="nx">loading</span><span class="p">}</span>
+</span>              <span class="na">text</span><span class="o">=</span><span class="p">{</span><span class="nx">isMember</span> <span class="o">?</span> <span class="s2">&quot;Log In&quot;</span> <span class="o">:</span> <span class="s2">&quot;Sign Up&quot;</span><span class="p">}</span>
+              <span class="na">type</span><span class="o">=</span><span class="s">&quot;submit&quot;</span>
+            <span class="p">/&gt;</span>
+            <span class="p">{</span><span class="cm">/* ... */</span><span class="p">}</span>
+          <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+<span class="hll">          <span class="p">{</span><span class="nx">error</span> <span class="o">&amp;&amp;</span> <span class="p">(</span>
+</span><span class="hll">            <span class="p">&lt;</span><span class="nt">p</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;mt-4 text-red-500 text-sm&quot;</span><span class="p">&gt;{</span><span class="nx">error</span><span class="p">.</span><span class="nx">message</span><span class="p">}&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</span><span class="hll">          <span class="p">)}</span>
+</span>        <span class="p">&lt;/</span><span class="nt">form</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">Login</span><span class="p">;</span>
+</pre></div>
+
+<p>If we log in an existing user through the React application and then open the browser’s developer tools, we should see an HttpOnly <code>token</code> cookie stored with the JWT value in it:</p>
+<p><img src="../../images/screenshots/chrome-cookie.png" alt="HttpOnly cookie visible in Chrome DevTools" /><br />
+</p>
+<p>Now we’ll wire up the sign-up version of the form. First, we’ll need a new mutation:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/mutations.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+
+<span class="c1">// ...</span>
+<span class="hll">
+</span><span class="hll"><span class="kr">export</span> <span class="kr">const</span> <span class="nx">SignUp</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+</span><span class="hll"><span class="sb">  mutation SignUp($input: SignUpInput!) {</span>
+</span><span class="hll"><span class="sb">    signUp(input: $input) {</span>
+</span><span class="hll"><span class="sb">      viewer {</span>
+</span><span class="hll"><span class="sb">        id</span>
+</span><span class="hll"><span class="sb">        email</span>
+</span><span class="hll"><span class="sb">        name</span>
+</span><span class="hll"><span class="sb">        username</span>
+</span><span class="hll"><span class="sb">      }</span>
+</span><span class="hll"><span class="sb">      token</span>
+</span><span class="hll"><span class="sb">    }</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll"><span class="sb">`</span><span class="p">;</span>
+</span></pre></div>
+
+<p>But wait! The code we just added to <code>mutations.js</code> doesn’t seem very DRY because both the <code>Login</code> and <code>SignUp</code> mutations use the same field selections. This seems like a good opportunity to add a reusable fragment (as we did in Chapter 2). Let’s add a <code>fragments.js</code> file to <code>client/src/graphql</code> and add the following code to it:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/fragments.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="kr">const</span> <span class="nx">viewerAndToken</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  fragment viewerAndToken on AuthPayload {</span>
+<span class="sb">    viewer {</span>
+<span class="sb">      id</span>
+<span class="sb">      email</span>
+<span class="sb">      name</span>
+<span class="sb">      username</span>
+<span class="sb">    }</span>
+<span class="sb">    token</span>
+<span class="sb">  }</span>
+<span class="sb">`</span><span class="p">;</span>
+</pre></div>
+
+<p>Now we can refactor our two mutations to use the <code>viewerAndToken</code> fragment. For each operation where the fragment is used, we must include the <code>viewerAndToken</code> variable just after the closing curly bracket at the end of the template string:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/mutations.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+
+<span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">viewerAndToken</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;./fragments&quot;</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="kr">export</span> <span class="kr">const</span> <span class="nx">Login</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  mutation Login($password: String!, $username: String!) {</span>
+<span class="sb">    login(password: $password, username: $username) {</span>
+<span class="hll"><span class="sb">      ...viewerAndToken</span>
+</span><span class="sb">    }</span>
+<span class="sb">  }</span>
+<span class="hll"><span class="sb">  </span><span class="si">${</span><span class="nx">viewerAndToken</span><span class="si">}</span><span class="sb"></span>
+</span><span class="sb">`</span><span class="p">;</span>
+
+<span class="kr">export</span> <span class="kr">const</span> <span class="nx">SignUp</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  mutation SignUp($input: SignUpInput!) {</span>
+<span class="sb">    signUp(input: $input) {</span>
+<span class="hll"><span class="sb">      ...viewerAndToken</span>
+</span><span class="sb">    }</span>
+<span class="sb">  }</span>
+<span class="hll"><span class="sb">  </span><span class="si">${</span><span class="nx">viewerAndToken</span><span class="si">}</span><span class="sb"></span>
+</span><span class="sb">`</span><span class="p">;</span>
+</pre></div>
+
+<p>Lastly, we’ll import the <code>SignUp</code> mutation into the <code>Login</code> page component and call <code>useMutation</code> again to set up the new mutation. We’ll need to update the form’s <code>onSubmit</code> prop to call either mutation conditionally depending on the <code>isMember</code> state value. We must also turn the name and email inputs into controlled components as well now:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/components/Login/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">Login</span> <span class="nx">as</span> <span class="nx">LoginMutation</span><span class="p">,</span> <span class="nx">SignUp</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;../../graphql/mutations&quot;</span><span class="p">;</span>
+</span><span class="c1">// ...</span>
+
+<span class="kd">function</span> <span class="nx">Login</span><span class="p">()</span> <span class="p">{</span>
+<span class="hll">  <span class="kr">const</span> <span class="p">[</span><span class="nx">email</span><span class="p">,</span> <span class="nx">setEmail</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">);</span>
+</span>  <span class="kr">const</span> <span class="p">[</span><span class="nx">isMember</span><span class="p">,</span> <span class="nx">setIsMember</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+<span class="hll">  <span class="kr">const</span> <span class="p">[</span><span class="nx">name</span><span class="p">,</span> <span class="nx">setName</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">(</span><span class="s2">&quot;&quot;</span><span class="p">);</span>
+</span>  <span class="c1">// ...</span>
+  
+  <span class="kr">const</span> <span class="p">[</span><span class="nx">login</span><span class="p">,</span> <span class="p">{</span> <span class="nx">error</span><span class="p">,</span> <span class="nx">loading</span> <span class="p">}]</span> <span class="o">=</span> <span class="nx">useMutation</span><span class="p">(</span><span class="nx">LoginMutation</span><span class="p">,</span> <span class="p">{</span>
+    <span class="nx">onCompleted</span>
+  <span class="p">});</span>
+<span class="hll">  <span class="kr">const</span> <span class="p">[</span><span class="nx">signUp</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useMutation</span><span class="p">(</span><span class="nx">SignUp</span><span class="p">,</span> <span class="p">{</span> <span class="nx">onCompleted</span> <span class="p">});</span>
+</span>  
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;bg-gray-50 flex items-center justify-center min-h-screen&quot;</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;bg-white shadow p-8 max-w-sm w-10/12&quot;</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">h1</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;mb-4 text-2xl&quot;</span><span class="p">&gt;</span>Welcome to Bibliotech<span class="p">&lt;/</span><span class="nt">h1</span><span class="p">&gt;</span>
+        <span class="p">&lt;</span><span class="nt">form</span>
+          <span class="na">onSubmit</span><span class="o">=</span><span class="p">{</span><span class="nx">async</span> <span class="nx">event</span> <span class="p">=&gt;</span> <span class="p">{</span>
+            <span class="nx">event</span><span class="p">.</span><span class="nx">preventDefault</span><span class="p">();</span>
+
+<span class="hll">            <span class="k">if</span> <span class="p">(</span><span class="nx">isMember</span><span class="p">)</span> <span class="p">{</span>
+</span>              <span class="nx">await</span> <span class="nx">login</span><span class="p">({</span> <span class="nx">variables</span><span class="o">:</span> <span class="p">{</span> <span class="nx">password</span><span class="p">,</span> <span class="nx">username</span> <span class="p">}</span> <span class="p">}).</span><span class="k">catch</span><span class="p">(</span><span class="nx">err</span> <span class="p">=&gt;</span> <span class="p">{</span>
+                <span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="nx">err</span><span class="p">);</span>
+              <span class="p">});</span>
+<span class="hll">            <span class="p">}</span> else <span class="p">{</span>
+</span><span class="hll">              <span class="nx">await</span> <span class="nx">signUp</span><span class="p">({</span>
+</span><span class="hll">                <span class="nx">variables</span><span class="o">:</span> <span class="p">{</span> <span class="nx">input</span><span class="o">:</span> <span class="p">{</span> <span class="nx">email</span><span class="p">,</span> <span class="nx">name</span><span class="p">,</span> <span class="nx">password</span><span class="p">,</span> <span class="nx">username</span> <span class="p">}</span> <span class="p">}</span>
+</span><span class="hll">              <span class="p">}).</span><span class="k">catch</span><span class="p">(</span><span class="nx">err</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">                <span class="nx">console</span><span class="p">.</span><span class="nx">error</span><span class="p">(</span><span class="nx">err</span><span class="p">);</span>
+</span><span class="hll">              <span class="p">});</span>
+</span><span class="hll">            <span class="p">}</span>
+</span>          <span class="p">}}</span>
+        <span class="o">&gt;</span>
+          <span class="p">{</span><span class="cm">/* ... */</span><span class="p">}</span>
+          <span class="p">{</span><span class="o">!</span><span class="nx">isMember</span> <span class="o">&amp;&amp;</span> <span class="p">(</span>
+            <span class="p">&lt;&gt;</span>
+              <span class="p">&lt;</span><span class="nt">TextInput</span>
+                <span class="na">className</span><span class="o">=</span><span class="s">&quot;mb-4&quot;</span>
+                <span class="na">hiddenLabel</span>
+                <span class="na">id</span><span class="o">=</span><span class="s">&quot;email&quot;</span>
+                <span class="na">inputWidthClass</span><span class="o">=</span><span class="s">&quot;w-full&quot;</span>
+                <span class="na">label</span><span class="o">=</span><span class="s">&quot;Email&quot;</span>
+<span class="hll">                <span class="na">onChange</span><span class="o">=</span><span class="p">{</span><span class="nx">event</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">                  <span class="nx">setEmail</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">target</span><span class="p">.</span><span class="nx">value</span><span class="p">);</span>
+</span><span class="hll">                <span class="p">}}</span>
+</span>                <span class="na">placeholder</span><span class="o">=</span><span class="s">&quot;Your email&quot;</span>
+                <span class="na">type</span><span class="o">=</span><span class="s">&quot;email&quot;</span>
+<span class="hll">                <span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">email</span><span class="p">}</span>
+</span>              <span class="p">/&gt;</span>
+              <span class="p">&lt;</span><span class="nt">TextInput</span>
+                <span class="na">className</span><span class="o">=</span><span class="s">&quot;mb-4&quot;</span>
+                <span class="na">hiddenLabel</span>
+                <span class="na">id</span><span class="o">=</span><span class="s">&quot;name&quot;</span>
+                <span class="na">inputWidthClass</span><span class="o">=</span><span class="s">&quot;w-full&quot;</span>
+                <span class="na">label</span><span class="o">=</span><span class="s">&quot;Full Name&quot;</span>
+<span class="hll">                <span class="na">onChange</span><span class="o">=</span><span class="p">{</span><span class="nx">event</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">                  <span class="nx">setName</span><span class="p">(</span><span class="nx">event</span><span class="p">.</span><span class="nx">target</span><span class="p">.</span><span class="nx">value</span><span class="p">);</span>
+</span><span class="hll">                <span class="p">}}</span>
+</span>                <span class="na">placeholder</span><span class="o">=</span><span class="s">&quot;Your full name&quot;</span>
+                <span class="na">type</span><span class="o">=</span><span class="s">&quot;text&quot;</span>
+<span class="hll">                <span class="na">value</span><span class="o">=</span><span class="p">{</span><span class="nx">name</span><span class="p">}</span>
+</span>              <span class="p">/&gt;</span>
+            <span class="p">&lt;/&gt;</span>
+          <span class="p">)}</span>
+          <span class="p">{</span><span class="cm">/* ... */</span><span class="p">}</span>
+        <span class="p">&lt;/</span><span class="nt">form</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">Login</span><span class="p">;</span>
+</pre></div>
+
+<p>Try signing up a new user through the form now. You should see the new user appear in <code>db.json</code> and a cookie stored in the browser after the mutation completes.</p>
+<h2 id="use-context-and-hooks-to-manage-authentication-state">Use Context and Hooks to Manage Authentication State</h2>
+<p>Now that we can store the cookie in the browser, it would be helpful if we could persist the viewer’s data provided by the <code>AuthPayload</code> and also keep track of whether their session is still valid (where validity is based on the token’s expiration time). To do this, we’ll keep track of the viewer’s personal information in memory only but we’ll persist the token expiration time to local storage so we can check if a user still has a valid session after a page reload. If the page reloads and the token is still fresh when checked, the GraphQL API will be queried to refetch the viewer’s data again, and with the HttpOnly cookie in tow.</p>
+<p>It will ultimately prove useful to have access to the viewer’s data throughout various components in the client application, so we’ll use React’s context API for this. Context is a handy way to pass data around a React application without passing it through props at each level in the component tree. Context is useful when there is some kind of global data that we want to share across many React components. In our case, that data is information about the authenticated user.</p>
+<p>Creating a context in React consists of three parts:</p>
+<ul>
+<li>A <strong>context object</strong> that holds current values for the context</li>
+<li>A <strong>provider</strong> component that allows other components to “consume” (in other words, subscribe to) the context changes</li>
+<li>A <strong>consumer</strong> component or the much cleaner <code>useContext</code> hook (available in React 16.8+) that subscribes to context changes and can be used to inform other components nested inside that they need to update</li>
+</ul>
+<p>To create a context to manage authentication state, we’ll begin by adding a new <code>context</code> directory in <code>client/src</code> and then add an <code>AuthContext</code> directory to that with an <code>index.js</code> file:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/context/AuthContext/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">createContext</span><span class="p">,</span> <span class="nx">useContext</span><span class="p">,</span> <span class="nx">useState</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react&quot;</span><span class="p">;</span>
+
+<span class="kr">const</span> <span class="nx">AuthContext</span> <span class="o">=</span> <span class="nx">createContext</span><span class="p">();</span>
+<span class="kr">const</span> <span class="nx">useAuth</span> <span class="o">=</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="nx">useContext</span><span class="p">(</span><span class="nx">AuthContext</span><span class="p">);</span>
+
+<span class="kd">function</span> <span class="nx">AuthProvider</span><span class="p">({</span> <span class="nx">children</span> <span class="p">})</span> <span class="p">{</span>
+  <span class="kr">const</span> <span class="p">[</span><span class="nx">checkingSession</span><span class="p">,</span> <span class="nx">setCheckingSession</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+  
+  <span class="c1">// Token expiration and viewer-handling logic will go here...</span>
+
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="nt">AuthContext</span><span class="p">.</span><span class="na">Provider</span> <span class="na">value</span><span class="o">=</span><span class="p">{{</span> <span class="nx">checkingSession</span> <span class="p">}}&gt;</span>
+      <span class="p">{</span><span class="nx">children</span><span class="p">}</span>
+    <span class="p">&lt;/</span><span class="nt">AuthContext</span><span class="p">.</span><span class="na">Provider</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+export <span class="p">{</span> <span class="nx">AuthProvider</span><span class="p">,</span> <span class="nx">useAuth</span> <span class="p">};</span>
+</pre></div>
+
+<p>In this file, we first create an <code>AuthContext</code> and then create a <code>useAuth</code> wrapper function that returns the result of calling the <code>useContext</code> hook with the <code>AuthContext</code> object passed into it. The return value of <code>useAuth</code> will ultimately be the current value for the <code>AuthContext</code>. In other words, if we create a component and call <code>useAuth</code> inside of it, the return value of <code>useAuth</code> will be the object that is passed into the <code>value</code> prop of the <code>AuthContext.Provider</code> component. For now, that object would only contain a <code>checkingSession</code> property with a value of <code>true</code>.</p>
+<p>Next, we’ll use the <code>AuthProvider</code> component at the high level in our component tree so other components will have access to the <code>AuthContext</code> wherever needed. Let’s head over to <code>client/src/index.js</code> and nest the <code>AuthProvider</code> just inside of the <code>ApolloProvider</code> component:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">AuthProvider</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;./context/AuthContext&quot;</span><span class="p">;</span>
+</span><span class="c1">// ...</span>
+
+<span class="kd">function</span> <span class="nx">App</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="nt">ApolloProvider</span> <span class="na">client</span><span class="o">=</span><span class="p">{</span><span class="nx">client</span><span class="p">}&gt;</span>
+<span class="hll">      <span class="p">&lt;</span><span class="nt">AuthProvider</span><span class="p">&gt;</span>
+</span>        <span class="p">&lt;</span><span class="nt">Router</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">Routes</span> <span class="p">/&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">Router</span><span class="p">&gt;</span>
+<span class="hll">      <span class="p">&lt;/</span><span class="nt">AuthProvider</span><span class="p">&gt;</span>
+</span>    <span class="p">&lt;/</span><span class="nt">ApolloProvider</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="c1">// ...</span>
+</pre></div>
+
+<p>We have to put the <code>AuthProvider</code> inside the <code>ApolloProvider</code> because the inside of the <code>AuthProvider</code> component we will need access to the instance of Apollo Client to make a query to get the current viewer’s data when the page reloads.</p>
+<p>To persist the token expiration time in local storage, we’ll need to decode the token received in the response from a <code>login</code> or <code>signUp</code> mutation to retrieve the expiration time. We can install the jwt-decode package in the <code>client</code> directory to assist with that:</p>
+<div class="highlight"><pre><span></span>npm i jwt-decode@3.1.2
+</pre></div>
+
+<div class="boxout">
+<p><strong>Schema Design Best Practice Alert!</strong></p>
+<p>This package only decodes the JWT’s base64Url encoding and it does not validate the JWT. To validate the JWT, we would need access to the secret that was used to sign it and we wouldn’t want to expose that to the client.</p>
+<p>We can trust our server will send us a valid JWT for our development purposes here, but this concern raises a very important question: <em>should the client have to fuss over doing the work to decode the JWT to get the token expiration in the first place, or should the expiration time be codified in the GraphQL schema instead?</em></p>
+<p>As an extra credit project—and with a mindset of taking an iterative, client-focused approach to API design—you may wish to try adding a <code>tokenExpiration</code> field to the <code>AuthPayload</code> and calculate this value on the server instead.</p>
+</div>
+<p>Next, we’ll import the new package into the <code>AuthContext</code> component and create a <code>persistSessionData</code> function that gets the JWT expiration time from the decoded token, converts it to milliseconds, saves it to local storage, and then stores the <code>viewer</code> data in state too. We’ll also add an <code>isAuthenticated</code> function to compare this value against the expiration time saved in local storage, and then expose <code>persistSessionData</code>, <code>isAuthenticated</code>, and the <code>viewer</code> values via the context:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/context/AuthContext/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">createContext</span><span class="p">,</span> <span class="nx">useContext</span><span class="p">,</span> <span class="nx">useState</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react&quot;</span><span class="p">;</span>
+<span class="hll"><span class="kr">import</span> <span class="nx">jwtDecode</span> <span class="nx">from</span> <span class="s2">&quot;jwt-decode&quot;</span><span class="p">;</span>
+</span>
+<span class="c1">// ...</span>
+
+<span class="kd">function</span> <span class="nx">AuthProvider</span><span class="p">({</span> <span class="nx">children</span> <span class="p">})</span> <span class="p">{</span>
+  <span class="kr">const</span> <span class="p">[</span><span class="nx">checkingSession</span><span class="p">,</span> <span class="nx">setCheckingSession</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+<span class="hll">  <span class="kr">const</span> <span class="p">[</span><span class="nx">viewer</span><span class="p">,</span> <span class="nx">setViewer</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">();</span>
+</span>
+<span class="hll">  <span class="kr">const</span> <span class="nx">persistSessionData</span> <span class="o">=</span> <span class="nx">authPayload</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">    <span class="k">if</span> <span class="p">(</span><span class="nx">authPayload</span><span class="p">.</span><span class="nx">token</span> <span class="o">&amp;&amp;</span> <span class="nx">authPayload</span><span class="p">.</span><span class="nx">viewer</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">      <span class="kr">const</span> <span class="nx">decodedToken</span> <span class="o">=</span> <span class="nx">jwtDecode</span><span class="p">(</span><span class="nx">authPayload</span><span class="p">.</span><span class="nx">token</span><span class="p">);</span>
+</span><span class="hll">      <span class="kr">const</span> <span class="nx">expiresAt</span> <span class="o">=</span> <span class="nx">decodedToken</span><span class="p">.</span><span class="nx">exp</span> <span class="o">*</span> <span class="mi">1000</span><span class="p">;</span>
+</span><span class="hll">      <span class="nx">localStorage</span><span class="p">.</span><span class="nx">setItem</span><span class="p">(</span><span class="s2">&quot;token_expires_at&quot;</span><span class="p">,</span> <span class="nx">expiresAt</span><span class="p">);</span>
+</span><span class="hll">      <span class="nx">setViewer</span><span class="p">(</span><span class="nx">authPayload</span><span class="p">.</span><span class="nx">viewer</span><span class="p">);</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">  <span class="p">};</span>
+</span><span class="hll">  
+</span><span class="hll">  <span class="kr">const</span> <span class="nx">isAuthenticated</span> <span class="o">=</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">expiresAt</span> <span class="o">=</span> <span class="nx">localStorage</span><span class="p">.</span><span class="nx">getItem</span><span class="p">(</span><span class="s2">&quot;token_expires_at&quot;</span><span class="p">);</span>
+</span><span class="hll">    <span class="k">return</span> <span class="nx">expiresAt</span> <span class="o">?</span> <span class="k">new</span> <span class="nb">Date</span><span class="p">().</span><span class="nx">getTime</span><span class="p">()</span> <span class="o">&lt;</span> <span class="nx">expiresAt</span> <span class="o">:</span> <span class="kc">false</span><span class="p">;</span>
+</span><span class="hll">  <span class="p">};</span>
+</span><span class="hll">
+</span>  <span class="k">return</span> <span class="p">(</span>
+<span class="hll">    <span class="p">&lt;</span><span class="nt">AuthContext</span><span class="p">.</span><span class="na">Provider</span>
+</span><span class="hll">      <span class="na">value</span><span class="o">=</span><span class="p">{{</span>
+</span><span class="hll">        <span class="nx">checkingSession</span><span class="p">,</span>
+</span><span class="hll">        <span class="nx">isAuthenticated</span><span class="p">,</span>
+</span><span class="hll">        <span class="nx">persistSessionData</span><span class="p">,</span>
+</span><span class="hll">        <span class="nx">viewer</span>
+</span><span class="hll">      <span class="p">}}</span>
+</span><span class="hll">    <span class="p">&gt;</span>
+</span>      <span class="p">{</span><span class="nx">children</span><span class="p">}</span>
+    <span class="p">&lt;/</span><span class="nt">AuthContext</span><span class="p">.</span><span class="na">Provider</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+export <span class="p">{</span> <span class="nx">AuthProvider</span><span class="p">,</span> <span class="nx">useAuth</span> <span class="p">};</span>
+</pre></div>
+
+<p>The <code>persistSessionData</code> function will be called after a successful <code>login</code> or <code>signUp</code> mutation runs and then set the token expiration time and the <code>viewer</code> based on the value of those fields in the returned <code>AuthPayload</code>. However, if the page reloads at a time when <code>isAuthenticated</code> still returns <code>true</code>, then we’ll need a way to fetch the <code>viewer</code> again when the <code>AuthProvider</code> component mounts. We’ll need a <code>GetViewer</code> query to do that:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/queries.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+<span class="hll">
+</span><span class="hll"><span class="kr">export</span> <span class="kr">const</span> <span class="nx">GetViewer</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+</span><span class="hll"><span class="sb">  query GetViewer {</span>
+</span><span class="hll"><span class="sb">    viewer {</span>
+</span><span class="hll"><span class="sb">      id</span>
+</span><span class="hll"><span class="sb">      email</span>
+</span><span class="hll"><span class="sb">      name</span>
+</span><span class="hll"><span class="sb">      username</span>
+</span><span class="hll"><span class="sb">    }</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll"><span class="sb">`</span><span class="p">;</span>
+</span></pre></div>
+
+<p>Inside of the <code>AuthProvider</code> component, we’ll take a slightly different approach in how we use this query to get the viewer. Instead of using the <code>useQuery</code> hook to automatically fetch the data when the component loads, we’ll instead use the <code>useApolloClient</code> hook to access the Apollo Client instance directly and send a query with its <code>query</code> method when the user has a valid token but the <code>viewer</code> data isn’t available</p>
+<p>To run this check and fetch the data when the <code>AuthProvider</code> loads, we’ll use React’s <code>useEffect</code> hook because it behaves much like the <code>componentDidMount</code> lifecycle method did in a traditional class component. Essentially, we use this hook whenever we want to do something that will have a side effect in our application—in this case, that side effect is fetching data. The <code>useEffect</code> hook expects us to pass it a function. Inside this function, we call <code>client.query</code> and pass in the <code>GetViewer</code> operation:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/context/AuthContext/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">useApolloClient</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">createContext</span><span class="p">,</span> <span class="nx">useContext</span><span class="p">,</span> <span class="nx">useEffect</span><span class="p">,</span> <span class="nx">useState</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react&quot;</span><span class="p">;</span>
+</span><span class="kr">import</span> <span class="nx">jwtDecode</span> <span class="nx">from</span> <span class="s2">&quot;jwt-decode&quot;</span><span class="p">;</span>
+
+<span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">GetViewer</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;../../graphql/queries&quot;</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="kr">const</span> <span class="nx">AuthContext</span> <span class="o">=</span> <span class="nx">createContext</span><span class="p">();</span>
+<span class="kr">const</span> <span class="nx">useAuth</span> <span class="o">=</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="nx">useContext</span><span class="p">(</span><span class="nx">AuthContext</span><span class="p">);</span>
+
+<span class="kd">function</span> <span class="nx">AuthProvider</span><span class="p">({</span> <span class="nx">children</span> <span class="p">})</span> <span class="p">{</span>
+  <span class="kr">const</span> <span class="p">[</span><span class="nx">checkingSession</span><span class="p">,</span> <span class="nx">setCheckingSession</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">(</span><span class="kc">true</span><span class="p">);</span>
+<span class="hll">  <span class="kr">const</span> <span class="p">[</span><span class="nx">error</span><span class="p">,</span> <span class="nx">setError</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">();</span>
+</span>  <span class="kr">const</span> <span class="p">[</span><span class="nx">viewer</span><span class="p">,</span> <span class="nx">setViewer</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useState</span><span class="p">();</span>
+<span class="hll">  <span class="kr">const</span> <span class="nx">client</span> <span class="o">=</span> <span class="nx">useApolloClient</span><span class="p">();</span>
+</span>
+  <span class="c1">// ...</span>
+
+<span class="hll">  <span class="nx">useEffect</span><span class="p">(()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="nx">getViewerIfAuthenticated</span> <span class="o">=</span> <span class="nx">async</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">      <span class="k">if</span> <span class="p">(</span><span class="nx">isAuthenticated</span><span class="p">()</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">viewer</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">        <span class="k">try</span> <span class="p">{</span>
+</span><span class="hll">          <span class="kr">const</span> <span class="p">{</span> <span class="nx">data</span><span class="p">,</span> <span class="nx">error</span><span class="o">:</span> <span class="nx">viewerError</span><span class="p">,</span> <span class="nx">loading</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">await</span> <span class="nx">client</span><span class="p">.</span><span class="nx">query</span><span class="p">({</span>
+</span><span class="hll">            <span class="nx">query</span><span class="o">:</span> <span class="nx">GetViewer</span>
+</span><span class="hll">          <span class="p">});</span>
+</span><span class="hll">
+</span><span class="hll">          <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">loading</span> <span class="o">&amp;&amp;</span> <span class="nx">viewerError</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">            <span class="nx">setError</span><span class="p">(</span><span class="nx">viewerError</span><span class="p">);</span>
+</span><span class="hll">          <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">loading</span> <span class="o">&amp;&amp;</span> <span class="nx">data</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">            <span class="nx">setViewer</span><span class="p">(</span><span class="nx">data</span><span class="p">.</span><span class="nx">viewer</span><span class="p">);</span>
+</span><span class="hll">          <span class="p">}</span>
+</span><span class="hll">        <span class="p">}</span> <span class="k">catch</span> <span class="p">(</span><span class="nx">err</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">          <span class="nx">setError</span><span class="p">(</span><span class="nx">err</span><span class="p">);</span>
+</span><span class="hll">        <span class="p">}</span>
+</span><span class="hll">      <span class="p">}</span>
+</span><span class="hll">      <span class="nx">setCheckingSession</span><span class="p">(</span><span class="kc">false</span><span class="p">);</span>
+</span><span class="hll">    <span class="p">};</span>
+</span><span class="hll">    <span class="nx">getViewerIfAuthenticated</span><span class="p">();</span>
+</span><span class="hll">  <span class="p">},</span> <span class="p">[</span><span class="nx">client</span><span class="p">,</span> <span class="nx">viewer</span><span class="p">]);</span>
+</span><span class="hll">
+</span>  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="nt">AuthContext</span><span class="p">.</span><span class="na">Provider</span>
+      <span class="na">value</span><span class="o">=</span><span class="p">{{</span>
+        <span class="nx">checkingSession</span><span class="p">,</span>
+<span class="hll">        <span class="nx">error</span><span class="p">,</span>
+</span>        <span class="nx">isAuthenticated</span><span class="p">,</span>
+        <span class="nx">persistSessionData</span><span class="p">,</span>
+        <span class="nx">viewer</span>
+      <span class="p">}}</span>
+    <span class="p">&gt;</span>
+      <span class="p">{</span><span class="nx">children</span><span class="p">}</span>
+    <span class="p">&lt;/</span><span class="nt">AuthContext</span><span class="p">.</span><span class="na">Provider</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+export <span class="p">{</span> <span class="nx">AuthProvider</span><span class="p">,</span> <span class="nx">useAuth</span> <span class="p">};</span>
+</pre></div>
+
+<p>We create an async <code>getViewerIfAuthenticated</code> function inside of <code>useEffect</code> and immediately call it because <code>useEffect</code> can only return another (optional) function to do clean-up when the component is unmounted. If we were to mark the <code>useEffect</code> callback as <code>async</code> directly to use the <code>await</code> keyword with <code>client.query</code>, then an error would result because <code>async</code> functions always return promises.</p>
+<p>With this code in place, we can now use our <code>useAuth</code> hook in the <code>Login</code> component to persist the viewer data and token expiration time based on the <code>signUp</code> or <code>login</code> mutation response:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/components/Login/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+<span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">useAuth</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;../../context/AuthContext&quot;</span><span class="p">;</span>
+</span><span class="c1">// ...</span>
+
+<span class="kd">function</span> <span class="nx">Login</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+<span class="hll">  <span class="kr">const</span> <span class="p">{</span> <span class="nx">persistSessionData</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">useAuth</span><span class="p">();</span>
+</span>  <span class="kr">const</span> <span class="nx">history</span> <span class="o">=</span> <span class="nx">useHistory</span><span class="p">();</span>
+
+<span class="hll">  <span class="kr">const</span> <span class="nx">onCompleted</span> <span class="o">=</span> <span class="nx">data</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="p">{</span> <span class="nx">token</span><span class="p">,</span> <span class="nx">viewer</span> <span class="p">}</span> <span class="o">=</span> <span class="nb">Object</span><span class="p">.</span><span class="nx">entries</span><span class="p">(</span><span class="nx">data</span><span class="p">)[</span><span class="mi">0</span><span class="p">][</span><span class="mi">1</span><span class="p">];</span>
+</span><span class="hll">    <span class="nx">persistSessionData</span><span class="p">({</span> <span class="nx">token</span><span class="p">,</span> <span class="nx">viewer</span> <span class="p">});</span>
+</span>    <span class="nx">history</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="s2">&quot;/home&quot;</span><span class="p">);</span>
+  <span class="p">};</span>
+  
+  <span class="c1">// ...</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">Login</span><span class="p">;</span>
+</pre></div>
+
+<p>Try to log in a user again and use the browser’s developer tools to check local storage afterward and confirm the expiration time was successfully stored.</p>
+<h2 id="log-out-a-user">Log Out a User</h2>
+<p>We now need to handle logouts on the client side as well. We’ll begin by adding a logout mutation to <code>mutations.js</code>:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/mutations.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="hll"><span class="kr">export</span> <span class="kr">const</span> <span class="nx">Logout</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+</span><span class="hll"><span class="sb">  mutation Logout {</span>
+</span><span class="hll"><span class="sb">    logout</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll"><span class="sb">`</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="c1">// ...</span>
+</pre></div>
+
+<p>Logging out on the client side will mean sending the <code>Logout</code> mutation to trigger the server to invalidate the cookie, but we will also need to do some clean-up to remove the <code>viewer</code> object from state and the token expiration time from local storage. To do that, we’ll add a <code>clearSessionData</code> function to the <code>AuthProvider</code>:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/context/AuthContext/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+
+<span class="kd">function</span> <span class="nx">AuthProvider</span><span class="p">({</span> <span class="nx">children</span> <span class="p">})</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+
+<span class="hll">  <span class="kr">const</span> <span class="nx">clearSessionData</span> <span class="o">=</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">localStorage</span><span class="p">.</span><span class="nx">removeItem</span><span class="p">(</span><span class="s2">&quot;token_expires_at&quot;</span><span class="p">);</span>
+</span><span class="hll">    <span class="nx">setViewer</span><span class="p">(</span><span class="kc">null</span><span class="p">);</span>
+</span><span class="hll">  <span class="p">};</span>
+</span><span class="hll">
+</span>  <span class="c1">// ...</span>
+
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="nt">AuthContext</span><span class="p">.</span><span class="na">Provider</span>
+      <span class="na">value</span><span class="o">=</span><span class="p">{{</span>
+        <span class="nx">checkingSession</span><span class="p">,</span>
+<span class="hll">        <span class="nx">clearSessionData</span><span class="p">,</span>
+</span>        <span class="c1">// ...</span>
+      <span class="p">}}</span>
+    <span class="p">&gt;</span>
+      <span class="p">{</span><span class="nx">children</span><span class="p">}</span>
+    <span class="p">&lt;/</span><span class="nt">AuthContext</span><span class="p">.</span><span class="na">Provider</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+export <span class="p">{</span> <span class="nx">AuthProvider</span><span class="p">,</span> <span class="nx">useAuth</span> <span class="p">};</span>
+</pre></div>
+
+<p>Next, we’ll update the <code>NavBar</code> component for authenticated users so that it conditionally renders the button in the righthand corner to display “Log Out,” run the <code>Logout</code> mutation when clicked, clear the session data, and push the user to the <code>/login</code> route after the mutation completes. While we’re working on the <code>NavBar</code> component, let’s also add a “My Library” link to allow authenticated users to easily navigate to the homepage:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/components/NavBar/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">Link</span><span class="p">,</span> <span class="nx">useHistory</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react-router-dom&quot;</span><span class="p">;</span>
+<span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">useMutation</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+</span>
+<span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">Logout</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;../../graphql/mutations&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">useAuth</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;../../context/AuthContext&quot;</span><span class="p">;</span>
+</span><span class="kr">import</span> <span class="nx">Button</span> <span class="nx">from</span> <span class="s2">&quot;../Button&quot;</span><span class="p">;</span>
+
+<span class="kd">function</span> <span class="nx">NavBar</span><span class="p">()</span> <span class="p">{</span>
+<span class="hll">  <span class="kr">const</span> <span class="p">{</span> <span class="nx">clearSessionData</span><span class="p">,</span> <span class="nx">isAuthenticated</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">useAuth</span><span class="p">();</span>
+</span>  <span class="kr">const</span> <span class="nx">history</span> <span class="o">=</span> <span class="nx">useHistory</span><span class="p">();</span>
+
+<span class="hll">  <span class="kr">const</span> <span class="p">[</span><span class="nx">logout</span><span class="p">]</span> <span class="o">=</span> <span class="nx">useMutation</span><span class="p">(</span><span class="nx">Logout</span><span class="p">,</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">onCompleted</span><span class="o">:</span> <span class="p">()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+</span><span class="hll">      <span class="nx">clearSessionData</span><span class="p">();</span>
+</span><span class="hll">      <span class="nx">history</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="s2">&quot;/login&quot;</span><span class="p">);</span>
+</span><span class="hll">    <span class="p">}</span>
+</span><span class="hll">  <span class="p">});</span>
+</span><span class="hll">
+</span>  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="nt">header</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;bg-white border-b border-gray-200 border-solid&quot;</span><span class="p">&gt;</span>
+      <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;flex flex-wrap items-center justify-between mx-auto max-w-screen-lg px-8 py-8 w-full&quot;</span><span class="p">&gt;</span>
+        <span class="p">{</span><span class="cm">/* ... */</span><span class="p">}</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;flex items-center sm:justify-end mt-2 sm:mt-0&quot;</span><span class="p">&gt;</span>
+<span class="hll">          <span class="p">{</span><span class="nx">isAuthenticated</span><span class="p">()</span> <span class="o">&amp;&amp;</span> <span class="p">(</span>
+</span><span class="hll">            <span class="p">&lt;</span><span class="nt">Link</span> <span class="na">to</span><span class="o">=</span><span class="s">&quot;/home&quot;</span><span class="p">&gt;</span>
+</span><span class="hll">              <span class="p">&lt;</span><span class="nt">span</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;font-semibold mr-4 text-sm sm:text-base text-red-600&quot;</span><span class="p">&gt;</span>
+</span><span class="hll">                My Library
+</span><span class="hll">              <span class="p">&lt;/</span><span class="nt">span</span><span class="p">&gt;</span>
+</span><span class="hll">            <span class="p">&lt;/</span><span class="nt">Link</span><span class="p">&gt;</span>
+</span><span class="hll">          <span class="p">)}</span>
+</span>          <span class="p">&lt;</span><span class="nt">Button</span>
+            <span class="na">onClick</span><span class="o">=</span><span class="p">{</span><span class="nx">event</span> <span class="p">=&gt;</span> <span class="p">{</span>
+              <span class="nx">event</span><span class="p">.</span><span class="nx">preventDefault</span><span class="p">();</span>
+<span class="hll">
+</span><span class="hll">              <span class="k">if</span> <span class="p">(</span><span class="nx">isAuthenticated</span><span class="p">())</span> <span class="p">{</span>
+</span><span class="hll">                <span class="nx">logout</span><span class="p">();</span>
+</span><span class="hll">              <span class="p">}</span> else <span class="p">{</span>
+</span>                <span class="nx">history</span><span class="p">.</span><span class="nx">push</span><span class="p">(</span><span class="s2">&quot;/login&quot;</span><span class="p">);</span>
+<span class="hll">              <span class="p">}</span>
+</span>            <span class="p">}}</span>
+<span class="hll">            text=<span class="p">{</span><span class="nx">isAuthenticated</span><span class="p">()</span> <span class="o">?</span> <span class="s2">&quot;Log out&quot;</span> <span class="o">:</span> <span class="s2">&quot;Log In&quot;</span><span class="p">}</span>
+</span>          <span class="o">/&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+    <span class="p">&lt;/</span><span class="nt">header</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">NavBar</span><span class="p">;</span>
+</pre></div>
+
+<p>Before moving on, try going through the entire authentication flow for a user now and confirm that they are successfully logged out at the end.</p>
+<h2 id="render-private-and-public-routes">Render Private and Public Routes</h2>
+<p>We can finally log users in and out of the Bibliotech React application, so the next logical step is to prevent unauthenticated users from navigating to routes that should only be accessible once logged in. Specifically, we’re going to make the <code>/home</code> route private but leave the <code>/</code> and <code>/login</code> routes public. Additionally, it wouldn’t make send to allow authenticated users to access the <code>/login</code> page, so we’ll redirect them to the <code>/home</code> route if they try to do this.</p>
+<p>We’ll begin by creating a <code>PrivateRoute</code> component. Add a <code>PrivateRoute</code> directory with an <code>index.js</code> file in it to <code>client/src/components</code> with the following code:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/components/PrivateRoute/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">Redirect</span><span class="p">,</span> <span class="nx">Route</span><span class="p">,</span> <span class="nx">useLocation</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react-router-dom&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">useEffect</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react&quot;</span><span class="p">;</span>
+
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">useAuth</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;../../context/AuthContext&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">Loader</span> <span class="nx">from</span> <span class="s2">&quot;../../components/Loader&quot;</span><span class="p">;</span>
+
+<span class="kd">function</span> <span class="nx">PrivateRoute</span><span class="p">({</span> <span class="nx">component</span><span class="o">:</span> <span class="nx">Component</span><span class="p">,</span> <span class="p">...</span><span class="nx">rest</span> <span class="p">})</span> <span class="p">{</span>
+  <span class="kr">const</span> <span class="p">{</span> <span class="nx">checkingSession</span><span class="p">,</span> <span class="nx">isAuthenticated</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">useAuth</span><span class="p">();</span>
+  <span class="kr">const</span> <span class="p">{</span> <span class="nx">pathname</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">useLocation</span><span class="p">();</span>
+
+  <span class="kr">const</span> <span class="nx">renderRoute</span> <span class="o">=</span> <span class="nx">props</span> <span class="p">=&gt;</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">checkingSession</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="p">(</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;flex h-screen&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">Loader</span> <span class="na">centered</span> <span class="p">/&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">);</span>
+    <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">isAuthenticated</span><span class="p">())</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="p">&lt;</span><span class="nt">Component</span> <span class="p">{</span><span class="na">...props</span><span class="p">}</span> <span class="p">/&gt;;</span>
+    <span class="p">}</span>
+    
+    return <span class="p">&lt;</span><span class="nt">Redirect</span> <span class="na">to</span><span class="o">=</span><span class="s">&quot;/login&quot;</span> <span class="p">/&gt;;</span>
+  <span class="p">};</span>
+  
+  <span class="nx">useEffect</span><span class="p">(()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+    <span class="nb">window</span><span class="p">.</span><span class="nx">scrollTo</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+  <span class="p">},</span> <span class="p">[</span><span class="nx">pathname</span><span class="p">]);</span>
+
+  <span class="k">return</span> <span class="p">&lt;</span><span class="nt">Route</span> <span class="p">{</span><span class="na">...rest</span><span class="p">}</span> <span class="na">render</span><span class="o">=</span><span class="p">{</span><span class="nx">renderRoute</span><span class="p">}</span> <span class="p">/&gt;;</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">PrivateRoute</span><span class="p">;</span>
+</pre></div>
+
+<p>This component is a wrapper for React Router’s <code>Route</code> component, but with some control flow built into it to determine what to display based on the user’s authentication state. First, we need to determine if the application is currently checking the session. If it is, then we’ll display the <code>Loader</code> component and wait for this to finish. If the session is checked and the user is authenticated, then we’ll show the component that should be rendered by the route. Otherwise, we’ll use React Router’s <code>Redirect</code> component to send the user back to the index page.</p>
+<p>To keep our code tidy, we’ll wrap these checks in a function called <code>renderRoute</code> inside the <code>PrivateRoute</code> component. Below this function, we also take care of <a href="https://reactrouter.com/web/guides/scroll-restoration">scroll restoration</a> in the <code>useEffect</code> hook so the window scrolls back to the top when the user navigates to another route. We’ll finish off this component by passing any remaining route props through by spreading <code>rest</code>, and also passing the <code>renderRoute</code> function to the <code>render</code> prop of <code>Route</code>.</p>
+<p>We’ll need to check if a user is authenticated when rendering a public route too, so we’ll add a modified version of the <code>PrivateRoute</code> component as a new <code>PublicRoute</code> component:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/components/PublicRoute/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">Route</span><span class="p">,</span> <span class="nx">useLocation</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react-router-dom&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">useEffect</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react&quot;</span><span class="p">;</span>
+
+<span class="kr">import</span> <span class="p">{</span> <span class="nx">useAuth</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;../../context/AuthContext&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">Loader</span> <span class="nx">from</span> <span class="s2">&quot;../../components/Loader&quot;</span><span class="p">;</span>
+
+<span class="kd">function</span> <span class="nx">PublicRoute</span><span class="p">({</span> <span class="nx">component</span><span class="o">:</span> <span class="nx">Component</span><span class="p">,</span> <span class="p">...</span><span class="nx">rest</span> <span class="p">})</span> <span class="p">{</span>
+  <span class="kr">const</span> <span class="p">{</span> <span class="nx">checkingSession</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">useAuth</span><span class="p">();</span>
+  <span class="kr">const</span> <span class="p">{</span> <span class="nx">pathname</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">useLocation</span><span class="p">();</span>
+
+  <span class="kr">const</span> <span class="nx">renderRoute</span> <span class="o">=</span> <span class="nx">props</span> <span class="p">=&gt;</span> <span class="p">{</span>
+    <span class="k">if</span> <span class="p">(</span><span class="nx">checkingSession</span><span class="p">)</span> <span class="p">{</span>
+      <span class="k">return</span> <span class="p">(</span>
+        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;flex h-screen&quot;</span><span class="p">&gt;</span>
+          <span class="p">&lt;</span><span class="nt">Loader</span> <span class="na">centered</span> <span class="p">/&gt;</span>
+        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+      <span class="p">);</span>
+    <span class="p">}</span>
+
+    return <span class="p">&lt;</span><span class="nt">Component</span> <span class="p">{</span><span class="na">...props</span><span class="p">}</span> <span class="p">/&gt;;</span>
+  <span class="p">};</span>
+  
+  <span class="nx">useEffect</span><span class="p">(()</span> <span class="p">=&gt;</span> <span class="p">{</span>
+    <span class="nb">window</span><span class="p">.</span><span class="nx">scrollTo</span><span class="p">(</span><span class="mi">0</span><span class="p">,</span> <span class="mi">0</span><span class="p">);</span>
+  <span class="p">},</span> <span class="p">[</span><span class="nx">pathname</span><span class="p">]);</span>
+
+  <span class="k">return</span> <span class="p">&lt;</span><span class="nt">Route</span> <span class="p">{</span><span class="na">...rest</span><span class="p">}</span> <span class="na">render</span><span class="o">=</span><span class="p">{</span><span class="nx">renderRoute</span><span class="p">}</span> <span class="p">/&gt;;</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">PublicRoute</span><span class="p">;</span>
+</pre></div>
+
+<p>Now we can update all of our existing routes to use the <code>PrivateRoute</code> and <code>PublicRoute</code> components instead of the generic <code>Route</code> (we can also remove the <code>Route</code> import on the first line):</p>
+<p></p>
+<div class="code-context">
+<p>client/src/router/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">Switch</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react-router&quot;</span><span class="p">;</span>
+</span>
+<span class="kr">import</span> <span class="nx">Index</span> <span class="nx">from</span> <span class="s2">&quot;../pages/Index&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">Home</span> <span class="nx">from</span> <span class="s2">&quot;../pages/Home&quot;</span><span class="p">;</span>
+<span class="kr">import</span> <span class="nx">Login</span> <span class="nx">from</span> <span class="s2">&quot;../pages/Login&quot;</span><span class="p">;</span>
+<span class="hll"><span class="kr">import</span> <span class="nx">PrivateRoute</span> <span class="nx">from</span> <span class="s2">&quot;../components/PrivateRoute&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="nx">PublicRoute</span> <span class="nx">from</span> <span class="s2">&quot;../components/PublicRoute&quot;</span><span class="p">;</span>
+</span>
+<span class="kr">export</span> <span class="kd">function</span> <span class="nx">Routes</span><span class="p">()</span> <span class="p">{</span>
+  <span class="k">return</span> <span class="p">(</span>
+    <span class="p">&lt;</span><span class="nt">Switch</span><span class="p">&gt;</span>
+<span class="hll">      <span class="p">&lt;</span><span class="nt">PublicRoute</span> <span class="na">exact</span> <span class="na">path</span><span class="o">=</span><span class="s">&quot;/&quot;</span> <span class="na">component</span><span class="o">=</span><span class="p">{</span><span class="nx">Index</span><span class="p">}</span> <span class="p">/&gt;</span>
+</span><span class="hll">      <span class="p">&lt;</span><span class="nt">PrivateRoute</span> <span class="na">exact</span> <span class="na">path</span><span class="o">=</span><span class="s">&quot;/home&quot;</span> <span class="na">component</span><span class="o">=</span><span class="p">{</span><span class="nx">Home</span><span class="p">}</span> <span class="p">/&gt;</span>
+</span><span class="hll">      <span class="p">&lt;</span><span class="nt">PublicRoute</span> <span class="na">exact</span> <span class="na">path</span><span class="o">=</span><span class="s">&quot;/login&quot;</span> <span class="na">component</span><span class="o">=</span><span class="p">{</span><span class="nx">Login</span><span class="p">}</span> <span class="p">/&gt;</span>
+</span>    <span class="p">&lt;/</span><span class="nt">Switch</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">Routes</span><span class="p">;</span>
+</pre></div>
+
+<p>Lastly, we’ll update the <code>Login</code> component to check if a user is authenticated and then redirect them to the <code>/home</code> route if they are:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/pages/Login/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">Redirect</span><span class="p">,</span> <span class="nx">useHistory</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;react-router-dom&quot;</span><span class="p">;</span>
+</span><span class="c1">// ...</span>
+
+<span class="kd">function</span> <span class="nx">Login</span><span class="p">()</span> <span class="p">{</span>
+  <span class="c1">// ...</span>
+<span class="hll">  <span class="kr">const</span> <span class="p">{</span> <span class="nx">isAuthenticated</span><span class="p">,</span> <span class="nx">persistSessionData</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">useAuth</span><span class="p">();</span>
+</span>  <span class="kr">const</span> <span class="nx">history</span> <span class="o">=</span> <span class="nx">useHistory</span><span class="p">();</span>
+  
+  <span class="c1">// ...</span>
+  
+<span class="hll">  <span class="k">return</span> <span class="nx">isAuthenticated</span><span class="p">()</span> <span class="o">?</span> <span class="p">(</span>
+</span><span class="hll">    <span class="p">&lt;</span><span class="nt">Redirect</span> <span class="na">to</span><span class="o">=</span><span class="s">&quot;/home&quot;</span> <span class="p">/&gt;</span>
+</span><span class="hll">  <span class="p">)</span> <span class="o">:</span> <span class="p">(</span>
+</span>    <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;bg-gray-50 flex items-center justify-center min-h-screen&quot;</span><span class="p">&gt;</span>
+      <span class="p">{</span><span class="cm">/* ... */</span><span class="p">}</span>
+    <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+  <span class="p">);</span>
+<span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">Login</span><span class="p">;</span>
+</pre></div>
+
+<p>Head over to the React application and try accessing the <code>/home</code> route before logging in and the <code>login</code> route after authenticating to confirm that the redirection works as expected.</p>
+<h2 id="display-a-users-library-on-the-home-page">Display a User’s Library on the Home Page</h2>
+<p>As our final order of business in this chapter, we’ll query some content for the homepage. This page will display the same <code>BookGrid</code> component as the index page, but only list the books that a user has added to their library. As a first step, we’ll create a new <code>GetViewerLibrary</code> query in <code>queries.js</code>:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/queries.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="c1">// ...</span>
+<span class="hll">
+</span><span class="hll"><span class="kr">export</span> <span class="kr">const</span> <span class="nx">GetViewerLibrary</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+</span><span class="hll"><span class="sb">  query GetViewerLibrary($limit: Int, $page: Int) {</span>
+</span><span class="hll"><span class="sb">    viewer {</span>
+</span><span class="hll"><span class="sb">      id</span>
+</span><span class="hll"><span class="sb">      library(limit: $limit, orderBy: ADDED_ON_DESC, page: $page) {</span>
+</span><span class="hll"><span class="sb">        results {</span>
+</span><span class="hll"><span class="sb">          authors {</span>
+</span><span class="hll"><span class="sb">            id</span>
+</span><span class="hll"><span class="sb">            name</span>
+</span><span class="hll"><span class="sb">          }</span>
+</span><span class="hll"><span class="sb">          cover</span>
+</span><span class="hll"><span class="sb">          id</span>
+</span><span class="hll"><span class="sb">          title</span>
+</span><span class="hll"><span class="sb">        }</span>
+</span><span class="hll"><span class="sb">        pageInfo {</span>
+</span><span class="hll"><span class="sb">          hasNextPage</span>
+</span><span class="hll"><span class="sb">          page</span>
+</span><span class="hll"><span class="sb">        }</span>
+</span><span class="hll"><span class="sb">      }</span>
+</span><span class="hll"><span class="sb">    }</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll"><span class="sb">`</span><span class="p">;</span>
+</span></pre></div>
+
+<p>Again, we see that have an operation with nearly identical fields to another operation (the <code>GetBooks</code> query in this case), so it would make sense to create another fragment in <code>fragments.js</code>:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/fragments.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+
+<span class="hll"><span class="kr">export</span> <span class="kr">const</span> <span class="nx">basicBook</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+</span><span class="hll"><span class="sb">  fragment basicBook on Book {</span>
+</span><span class="hll"><span class="sb">    authors {</span>
+</span><span class="hll"><span class="sb">      id</span>
+</span><span class="hll"><span class="sb">      name</span>
+</span><span class="hll"><span class="sb">    }</span>
+</span><span class="hll"><span class="sb">    cover</span>
+</span><span class="hll"><span class="sb">    id</span>
+</span><span class="hll"><span class="sb">    title</span>
+</span><span class="hll"><span class="sb">  }</span>
+</span><span class="hll"><span class="sb">`</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="c1">// ...</span>
+</pre></div>
+
+<p>Now we’ll use the <code>basicBook</code> fragment for the <code>GetBooks</code> and <code>GetViewerLibrary</code> queries:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/graphql/queries.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="kr">import</span> <span class="p">{</span> <span class="nx">gql</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+
+<span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">basicBook</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;./fragments&quot;</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="kr">export</span> <span class="kr">const</span> <span class="nx">GetBooks</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  query GetBooks($limit: Int, $page: Int) {</span>
+<span class="sb">    books(limit: $limit, orderBy: TITLE_ASC, page: $page) {</span>
+<span class="sb">      results {</span>
+<span class="hll"><span class="sb">        ...basicBook</span>
+</span><span class="sb">      }</span>
+<span class="sb">      pageInfo {</span>
+<span class="sb">        hasNextPage</span>
+<span class="sb">        page</span>
+<span class="sb">      }</span>
+<span class="sb">    }</span>
+<span class="sb">  }</span>
+<span class="hll"><span class="sb">  </span><span class="si">${</span><span class="nx">basicBook</span><span class="si">}</span><span class="sb"></span>
+</span><span class="sb">`</span><span class="p">;</span>
+
+<span class="c1">// ...</span>
+
+<span class="kr">export</span> <span class="kr">const</span> <span class="nx">GetViewerLibrary</span> <span class="o">=</span> <span class="nx">gql</span><span class="sb">`</span>
+<span class="sb">  query GetViewerLibrary($limit: Int, $page: Int) {</span>
+<span class="sb">    viewer {</span>
+<span class="sb">      id</span>
+<span class="sb">      library(limit: $limit, orderBy: ADDED_ON_DESC, page: $page) {</span>
+<span class="sb">        results {</span>
+<span class="hll"><span class="sb">          ...basicBook</span>
+</span><span class="sb">        }</span>
+<span class="sb">        pageInfo {</span>
+<span class="sb">          hasNextPage</span>
+<span class="sb">          page</span>
+<span class="sb">        }</span>
+<span class="sb">      }</span>
+<span class="sb">    }</span>
+<span class="sb">  }</span>
+<span class="hll"><span class="sb">  </span><span class="si">${</span><span class="nx">basicBook</span><span class="si">}</span><span class="sb"></span>
+</span><span class="sb">`</span><span class="p">;</span>
+</pre></div>
+
+<p>As the final step, we’ll import the new query in the <code>Home</code> page component and use it to render the <code>BookGrid</code> component containing the logged-in user’s library results:</p>
+<p></p>
+<div class="code-context">
+<p>client/src/components/Home/index.js</p>
+</div>
+<div class="highlight"><pre><span></span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">useQuery</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;@apollo/client&quot;</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="hll"><span class="kr">import</span> <span class="p">{</span> <span class="nx">GetViewerLibrary</span> <span class="p">}</span> <span class="nx">from</span> <span class="s2">&quot;../../graphql/queries&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="nx">BookGrid</span> <span class="nx">from</span> <span class="s2">&quot;../../components/BookGrid&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="nx">Button</span> <span class="nx">from</span> <span class="s2">&quot;../../components/Button&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="nx">Loader</span> <span class="nx">from</span> <span class="s2">&quot;../../components/Loader&quot;</span><span class="p">;</span>
+</span><span class="hll"><span class="kr">import</span> <span class="nx">PageNotice</span> <span class="nx">from</span> <span class="s2">&quot;../../components/PageNotice&quot;</span><span class="p">;</span>
+</span><span class="kr">import</span> <span class="nx">MainLayout</span> <span class="nx">from</span> <span class="s2">&quot;../../components/MainLayout&quot;</span><span class="p">;</span>
+
+<span class="kd">function</span> <span class="nx">Home</span><span class="p">()</span> <span class="p">{</span>
+<span class="hll">  <span class="kr">const</span> <span class="p">{</span> <span class="nx">data</span><span class="p">,</span> <span class="nx">error</span><span class="p">,</span> <span class="nx">loading</span> <span class="p">}</span> <span class="o">=</span> <span class="nx">useQuery</span><span class="p">(</span><span class="nx">GetViewerLibrary</span><span class="p">,</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">variables</span><span class="o">:</span> <span class="p">{</span> <span class="nx">limit</span><span class="o">:</span> <span class="mi">12</span><span class="p">,</span> <span class="nx">page</span><span class="o">:</span> <span class="mi">1</span> <span class="p">}</span>
+</span><span class="hll">  <span class="p">});</span>
+</span><span class="hll">
+</span><span class="hll">  <span class="kd">let</span> <span class="nx">content</span> <span class="o">=</span> <span class="kc">null</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="hll">  <span class="k">if</span> <span class="p">(</span><span class="nx">loading</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">data</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">content</span> <span class="o">=</span> <span class="p">&lt;</span><span class="nt">Loader</span> <span class="na">centered</span> <span class="p">/&gt;;</span>
+</span><span class="hll">  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">data</span><span class="o">?</span><span class="p">.</span><span class="nx">viewer</span> <span class="o">&amp;&amp;</span> <span class="o">!</span><span class="nx">data</span><span class="p">.</span><span class="nx">viewer</span><span class="p">.</span><span class="nx">library</span><span class="p">.</span><span class="nx">results</span><span class="p">.</span><span class="nx">length</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">content</span> <span class="o">=</span> <span class="p">(</span>
+</span><span class="hll">      <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;flex flex-col h-full justify-center text-center&quot;</span><span class="p">&gt;</span>
+</span><span class="hll">        <span class="p">&lt;</span><span class="nt">p</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;text-gray-500 text-2xl&quot;</span><span class="p">&gt;</span>
+</span><span class="hll">          Time to add some books to your library!
+</span><span class="hll">        <span class="p">&lt;/</span><span class="nt">p</span><span class="p">&gt;</span>
+</span><span class="hll">      <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span class="hll">    <span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="nx">data</span><span class="o">?</span><span class="p">.</span><span class="nx">viewer</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="kr">const</span> <span class="p">{</span>
+</span><span class="hll">      <span class="nx">pageInfo</span><span class="o">:</span> <span class="p">{</span> <span class="nx">hasNextPage</span> <span class="p">},</span>
+</span><span class="hll">      <span class="nx">results</span>
+</span><span class="hll">    <span class="p">}</span> <span class="o">=</span> <span class="nx">data</span><span class="p">.</span><span class="nx">viewer</span><span class="p">.</span><span class="nx">library</span><span class="p">;</span>
+</span><span class="hll">
+</span><span class="hll">    <span class="nx">content</span> <span class="o">=</span> <span class="p">(</span>
+</span><span class="hll">      <span class="p">&lt;&gt;</span>
+</span><span class="hll">        <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;mb-8&quot;</span><span class="p">&gt;</span>
+</span><span class="hll">          <span class="p">&lt;</span><span class="nt">h2</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;font-medium mb-6 text-3xl&quot;</span><span class="p">&gt;</span>Your Library<span class="p">&lt;/</span><span class="nt">h2</span><span class="p">&gt;</span>
+</span><span class="hll">          <span class="p">&lt;</span><span class="nt">BookGrid</span> <span class="na">books</span><span class="o">=</span><span class="p">{</span><span class="nx">results</span><span class="p">}</span> <span class="p">/&gt;</span>
+</span><span class="hll">        <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span class="hll">        <span class="p">{</span><span class="nx">hasNextPage</span> <span class="o">&amp;&amp;</span> <span class="p">(</span>
+</span><span class="hll">          <span class="p">&lt;</span><span class="nt">div</span> <span class="na">className</span><span class="o">=</span><span class="s">&quot;flex justify-center&quot;</span><span class="p">&gt;</span>
+</span><span class="hll">            <span class="p">&lt;</span><span class="nt">Button</span> <span class="na">text</span><span class="o">=</span><span class="s">&quot;Load More&quot;</span> <span class="na">type</span><span class="o">=</span><span class="s">&quot;button&quot;</span> <span class="p">/&gt;</span>
+</span><span class="hll">          <span class="p">&lt;/</span><span class="nt">div</span><span class="p">&gt;</span>
+</span><span class="hll">        <span class="p">)}</span>
+</span><span class="hll">      <span class="p">&lt;/&gt;</span>
+</span><span class="hll">    <span class="p">);</span>
+</span><span class="hll">  <span class="p">}</span> <span class="k">else</span> <span class="k">if</span> <span class="p">(</span><span class="o">!</span><span class="nx">data</span><span class="p">.</span><span class="nx">viewer</span> <span class="o">||</span> <span class="nx">error</span><span class="p">)</span> <span class="p">{</span>
+</span><span class="hll">    <span class="nx">content</span> <span class="o">=</span> <span class="p">&lt;</span><span class="nt">PageNotice</span> <span class="na">text</span><span class="o">=</span><span class="s">&quot;Book list is unavailable. Please try again.&quot;</span> <span class="p">/&gt;;</span>
+</span><span class="hll">  <span class="p">}</span>
+</span><span class="hll">
+</span><span class="hll">  return <span class="p">&lt;</span><span class="nt">MainLayout</span><span class="p">&gt;{</span><span class="nx">content</span><span class="p">}&lt;/</span><span class="nt">MainLayout</span><span class="p">&gt;;</span>
+</span><span class="p">}</span>
+
+<span class="kr">export</span> <span class="k">default</span> <span class="nx">Home</span><span class="p">;</span>
+</pre></div>
+
+<p>After authenticating a user, the <code>/home</code> route should render only the books they have added to their library:</p>
+<p><img src="../../images/screenshots/react-app-library-book-list.png" alt="A user’s library books rendered on the homepage" /><br />
+</p>
+<h2 id="summary">Summary</h2>
+<p>With Apollo Client configured and client-side authentication in place, we have now reached the end of one of the most ambitious chapters yet. We began by setting up Apollo Client in the React application and using it to fetch a list of books for the index page. We then refactored our server-side authentication code to send an HttpOnly cookie to the browser to store a user’s JWT (noting that additional security measures should be layered on top of this to protect against XSS and CSRF attacks in production).</p>
+<p>We then created an <code>AuthContext</code> to manage authentication state and make that state available throughout the application. Finally, we added a few more features to the user interface by allowing users to log out, wrapping React Router’s <code>Route</code> component to redirect users as needed depending on their authentication state, and adding the user’s library books to the homepage.</p>
+<p>In the next chapter, we continue building out additional features of the user interface, including pagination for the book lists on the index page and homepage, a route for displaying detailed book information, and the ability to create, update, and delete book reviews.</p>
+<section class="footnotes" role="doc-endnotes">
+<hr />
+<ol>
+<li id="fn1" role="doc-endnote"><p><a href="https://www.rdegges.com/2018/please-stop-using-local-storage/">https://www.rdegges.com/2018/please-stop-using-local-storage/</a><a href="#fnref1" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn2" role="doc-endnote"><p><a href="https://hasura.io/blog/best-practices-of-using-jwt-with-graphql/#refresh_token">https://hasura.io/blog/best-practices-of-using-jwt-with-graphql/#refresh_token</a><a href="#fnref2" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+<li id="fn3" role="doc-endnote"><p><a href="https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP">https://developer.mozilla.org/en-US/docs/Web/HTTP/CSP</a><a href="#fnref3" class="footnote-back" role="doc-backlink">↩︎</a></p></li>
+</ol>
+</section>
+<footer>
+<p class="copyright">Copyright © 2021 <a href="https://8bit.press/">8-Bit Press Inc.</a> All rights reserved.</p>
+</footer>
+</div>
+</div>
+<script>
+(function () {
+  "use strict";
+
+  const chapter = document.getElementById("chapter");
+
+  // Set width of fixed-position chapter navigation based on parent
+  function setChapterNavWidth() {
+    const chapterNav = document.getElementsByClassName("chapter-nav")[0];
+    let { width: chapterWidth } = chapter.getBoundingClientRect();
+    chapterNav.setAttribute(
+      "style",
+      `width: ${chapterWidth >= 960 ? chapterWidth * 0.3 + 36 + "px" : "100%"}`
+    );
+  }
+
+  setChapterNavWidth();
+  window.addEventListener("resize", setChapterNavWidth);
+
+  // Open and close the book navigation in the masthead
+  const openMastheadButton = document.getElementById("masthead-open");
+  const closeMastheadButton = document.getElementById("masthead-close");
+  const masthead = document.getElementById("masthead");
+
+  openMastheadButton.addEventListener("click", function (event) {
+    event.stopPropagation();
+    masthead.style.marginLeft = "0px";
+  });
+
+  closeMastheadButton.addEventListener("click", function () {
+    masthead.style.marginLeft = "-100%";
+  });
+
+  chapter.addEventListener("click", function () {
+    if (masthead.style.marginLeft === "0px") {
+      masthead.style.marginLeft = "-100%";
+    }
+  });
+
+  // Add "Copy" button to code snippets
+  // Reference: https://tomspencer.dev/blog/2018/09/14/adding-click-to-copy-buttons-to-a-hugo-powered-blog/
+  if (!document.queryCommandSupported("copy")) {
+    return;
+  }
+
+  function flashCopyMessage(el, msg) {
+    el.textContent = msg;
+    setTimeout(function () {
+      el.textContent = "Copy";
+    }, 1000);
+  }
+
+  function selectText(node) {
+    const selection = window.getSelection();
+    const range = document.createRange();
+    range.selectNodeContents(node);
+    selection.removeAllRanges();
+    selection.addRange(range);
+    return selection;
+  }
+
+  function addCopyButton(containerEl) {
+    const copyBtn = document.createElement("button");
+    copyBtn.className = "highlight-copy-btn";
+    copyBtn.textContent = "Copy";
+
+    var codeEl = containerEl.firstElementChild;
+    copyBtn.addEventListener("click", function () {
+      try {
+        const selection = selectText(codeEl);
+        document.execCommand("copy");
+        selection.removeAllRanges();
+
+        flashCopyMessage(copyBtn, "Copied!");
+      } catch (e) {
+        console && console.log(e);
+        flashCopyMessage(copyBtn, "Failed :'(");
+      }
+    });
+
+    containerEl.appendChild(copyBtn);
+  }
+
+  // Add copy button to code blocks
+  var highlightBlocks = document.getElementsByClassName("highlight");
+  Array.prototype.forEach.call(highlightBlocks, addCopyButton);
+})();
+</script>
+</body>
+</html>
